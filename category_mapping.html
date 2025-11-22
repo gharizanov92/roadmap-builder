@@ -328,30 +328,23 @@
     <div class="container">
         <div class="section">
             <div class="section-header">
-                <h2>Keyword Mapping Rules</h2>
-                <button onclick="addKeywordRow()"><i class="fas fa-plus"></i> Add Rule</button>
+                <div class="header-actions">
+                    <button onclick="addKeywordRow()"><i class="fas fa-plus"></i> Add Rule</button>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
+                        <label for="csvFile" class="file-input-label">
+                            <i class="fas fa-upload"></i> Import CSV
+                        </label>
+                    </div>
+                    <button class="success" onclick="archiveData()"><i class="fas fa-archive"></i> Archive</button>
+                    <button class="danger" onclick="clearData()"><i class="fas fa-trash"></i> Clear</button>
+                </div>
             </div>
             <div class="keyword-grid" id="keywordGrid">
                 <div class="keyword-row keyword-header">
                     <div style="width: 50%">Regular Expression</div>
                     <div style="width: 40%">Category</div>
                     <div style="width: 10%">Actions</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-header">
-                <h2>Import CSV</h2>
-                <div class="header-actions">
-                    <div class="file-input-wrapper">
-                        <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
-                        <label for="csvFile" class="file-input-label">
-                            <i class="fas fa-upload"></i> Choose File
-                        </label>
-                    </div>
-                    <button class="success" onclick="archiveData()"><i class="fas fa-archive"></i> Archive</button>
-                    <button class="danger" onclick="clearData()"><i class="fas fa-trash"></i> Clear</button>
                 </div>
             </div>
         </div>
@@ -407,7 +400,23 @@
                     addKeywordRow(mapping.regex, mapping.category);
                 });
             } else {
-                addKeywordRow(); // Add one empty row
+                // Pre-load default mappings if nothing in local storage
+                const defaultMappings = [
+                    { regex: '.*Arch.*', category: 'Architectural Revamp' },
+                    { regex: '.*Bugs.*', category: 'Bugs' },
+                    { regex: '.*Technical Debt.*', category: 'Bugs' },
+                    { regex: '.*design.*', category: 'Improvements' },
+                    { regex: '.*improvement.*', category: 'Improvements' }
+                ];
+                
+                defaultMappings.forEach(mapping => {
+                    keywordMappings.push(mapping);
+                    if (mapping.category) categories.add(mapping.category);
+                    addKeywordRow(mapping.regex, mapping.category);
+                });
+                
+                // Save default mappings
+                localStorage.setItem('keyword_mapping.json', JSON.stringify(keywordMappings, null, 2));
             }
 
             // Load mapped jiras
