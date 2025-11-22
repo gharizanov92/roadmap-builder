@@ -6,6 +6,7 @@
     <title>Category Mapping Tool</title>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <style>
         * {
             box-sizing: border-box;
@@ -77,6 +78,191 @@
         .keyword-row:last-child {
             border-bottom-left-radius: 12px;
             border-bottom-right-radius: 12px;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 0;
+        }
+
+        .collapsible-header h3 {
+            margin: 0;
+            color: #1d1d1f;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .collapse-icon {
+            transition: transform 0.2s ease;
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .add-dependency-btn {
+            background: transparent;
+            border: 2px dashed rgba(118, 75, 162, 0.4);
+            color: rgba(118, 75, 162, 0.8);
+            padding: 2px 6px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            box-shadow: none;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 6px;
+        }
+
+        .add-dependency-btn:hover {
+            background: rgba(118, 75, 162, 0.1);
+            border-color: rgba(118, 75, 162, 0.6);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .dependency-pill {
+            background: rgba(118, 75, 162, 0.15);
+            color: #764ba2;
+            padding: 2px 7px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            position: relative;
+            margin-right: 8px;
+        }
+
+        .dependency-pill::after {
+            content: '→';
+            position: absolute;
+            right: -10px;
+            color: rgba(118, 75, 162, 0.5);
+            font-size: 12px;
+        }
+
+        .date-input {
+            width: 100%;
+            padding: 4px 8px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            color: rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.15s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: rgba(0, 0, 0, 0.8);
+            transform: none;
+        }
+
+        .jira-list-item {
+            padding: 10px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            transition: background 0.15s ease;
+            border-radius: 8px;
+            margin-bottom: 4px;
+        }
+
+        .jira-list-item:hover {
+            background: rgba(118, 75, 162, 0.08);
+        }
+
+        .jira-list-item:last-child {
+            border-bottom: none;
         }
 
         .keyword-row {
@@ -484,6 +670,26 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
+        /* Custom scrollbar styling */
+        .grid-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .grid-container::-webkit-scrollbar-track {
+            background: rgba(118, 75, 162, 0.1);
+            border-radius: 4px;
+        }
+
+        .grid-container::-webkit-scrollbar-thumb {
+            background: rgba(118, 75, 162, 0.4);
+            border-radius: 4px;
+        }
+
+        .grid-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(118, 75, 162, 0.6);
+        }
+
         .data-grid thead tr:first-child th:first-child {
             border-top-left-radius: 12px;
         }
@@ -600,16 +806,17 @@
 <body>
     <div class="container">
         <div class="section">
-            <div class="section-header">
-                <div class="header-actions">
-                    <button onclick="addKeywordRow()"><i class="fas fa-plus"></i> Add Rule</button>
-                </div>
+            <div class="collapsible-header" onclick="toggleCollapse()">
+                <i class="fas fa-chevron-down collapse-icon" id="collapseIcon"></i>
+                <h3>Keyword Mapping Rules</h3>
             </div>
-            <div class="keyword-grid" id="keywordGrid">
-                <div class="keyword-row keyword-header">
-                    <div>Actions</div>
-                    <div>Regular Expression</div>
-                    <div>Category</div>
+            <div class="collapsible-content" id="collapsibleContent">
+                <div class="keyword-grid" id="keywordGrid">
+                    <div class="keyword-row keyword-header">
+                        <div>Actions</div>
+                        <div>Regular Expression</div>
+                        <div>Category</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -634,6 +841,8 @@
                             <th class="pinned">Summary</th>
                             <th class="pinned">Category</th>
                             <th>Assignee</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
                         </tr>
                     </thead>
                     <tbody id="dataGridBody">
@@ -643,8 +852,20 @@
         </div>
     </div>
 
+    <!-- Dependency Modal -->
+    <div class="modal-overlay" id="dependencyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Select Prerequisite Issue</h3>
+                <button class="modal-close" onclick="closeDependencyModal()">×</button>
+            </div>
+            <div id="jiraListContainer"></div>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         let keywordMappings = [];
         let mappedJiras = [];
@@ -652,6 +873,7 @@
         let assignees = new Set();
         let keywordRowCounter = 0;
         let isLoading = false;
+        let currentDependencyIndex = null;
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -691,6 +913,9 @@
                 localStorage.setItem('keyword_mapping.json', JSON.stringify(keywordMappings, null, 2));
             }
 
+            // Always add an empty row at the end
+            addKeywordRow('', '', true);
+
             // Load mapped jiras
             const savedJiras = localStorage.getItem('mapped_jiras.json');
             if (savedJiras) {
@@ -705,34 +930,73 @@
             isLoading = false;
         }
 
-        function addKeywordRow(regex = '', category = '') {
+        function addKeywordRow(regex = '', category = '', isEmptyRow = false) {
             const rowId = `keyword-row-${keywordRowCounter++}`;
             const grid = document.getElementById('keywordGrid');
             
             const row = document.createElement('div');
             row.className = 'keyword-row';
             row.id = rowId;
-            row.draggable = true;
+            row.draggable = !isEmptyRow;
+            
+            const deleteBtn = (regex || category) ? 
+                `<button class="delete-btn" onclick="deleteKeywordRow('${rowId}')"><i class="fas fa-trash"></i></button>` : '';
+            
             row.innerHTML = `
                 <div>
                     <i class="fas fa-grip-vertical drag-handle"></i>
-                    <button class="delete-btn" onclick="deleteKeywordRow('${rowId}')"><i class="fas fa-trash"></i></button>
+                    ${deleteBtn}
                 </div>
-                <div><input type="text" class="regex-input" value="${escapeHtml(regex)}" onchange="saveKeywordMappings()"></div>
+                <div><input type="text" class="regex-input" value="${escapeHtml(regex)}" oninput="handleKeywordInput('${rowId}')" onchange="saveKeywordMappings()"></div>
                 <div><select class="category-select"></select></div>
             `;
             
             grid.appendChild(row);
             
-            // Add drag and drop event listeners
-            row.addEventListener('dragstart', handleDragStart);
-            row.addEventListener('dragover', handleDragOver);
-            row.addEventListener('drop', handleDrop);
-            row.addEventListener('dragend', handleDragEnd);
+            // Add drag and drop event listeners only if not empty row
+            if (!isEmptyRow) {
+                row.addEventListener('dragstart', handleDragStart);
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('drop', handleDrop);
+                row.addEventListener('dragend', handleDragEnd);
+            }
             
             // Initialize select2
             const select = $(row).find('.category-select');
             initializeSelect2(select, category, 'keyword');
+        }
+
+        function handleKeywordInput(rowId) {
+            const row = document.getElementById(rowId);
+            const input = row.querySelector('.regex-input');
+            const deleteContainer = row.querySelector('div:first-child');
+            
+            // Check if this row has content and doesn't have a delete button
+            if (input.value && !deleteContainer.querySelector('.delete-btn')) {
+                // Add delete button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.onclick = () => deleteKeywordRow(rowId);
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteContainer.appendChild(deleteBtn);
+                
+                // Make row draggable
+                row.draggable = true;
+                row.addEventListener('dragstart', handleDragStart);
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('drop', handleDrop);
+                row.addEventListener('dragend', handleDragEnd);
+                
+                // Add a new empty row at the end
+                addKeywordRow('', '', true);
+            }
+        }
+
+        function toggleCollapse() {
+            const content = document.getElementById('collapsibleContent');
+            const icon = document.getElementById('collapseIcon');
+            content.classList.toggle('collapsed');
+            icon.classList.toggle('collapsed');
         }
 
         let draggedElement = null;
@@ -1107,7 +1371,8 @@
                 issueType: headers.findIndex(h => h === 'issue type'),
                 status: headers.findIndex(h => h === 'status'),
                 assignee: headers.findIndex(h => h === 'assignee'),
-                priority: headers.findIndex(h => h === 'priority')
+                priority: headers.findIndex(h => h === 'priority'),
+                dueDate: headers.findIndex(h => h === 'due date')
             };
 
             mappedJiras = [];
@@ -1115,6 +1380,9 @@
             for (let i = 1; i < rows.length; i++) {
                 const values = rows[i];
                 if (values.length === 0 || values.every(v => !v)) continue;
+                
+                const dueDateStr = (values[columnMap.dueDate] || '').trim();
+                const endDate = parseDueDate(dueDateStr);
                 
                 const jira = {
                     summary: (values[columnMap.summary] || '').trim(),
@@ -1124,7 +1392,10 @@
                     assignee: (values[columnMap.assignee] || '').trim(),
                     priority: (values[columnMap.priority] || '').trim(),
                     category: '',
-                    manualCategory: false
+                    manualCategory: false,
+                    startDate: '',
+                    endDate: endDate,
+                    dependency: null
                 };
 
                 jira.category = matchCategory(jira.summary);
@@ -1198,7 +1469,17 @@
                 const priorityClass = getPriorityClass(jira.priority);
                 const statusClass = getStatusClass(jira.status);
                 
+                // Build dependency pill if exists
+                let dependencyPill = '';
+                if (jira.dependency !== null && jira.dependency !== undefined) {
+                    const depJira = mappedJiras[jira.dependency];
+                    if (depJira) {
+                        dependencyPill = `<span class="dependency-pill" onclick="removeDependency(${index})" style="cursor:pointer;" title="Click to remove">${escapeHtml(depJira.issueKey)}</span>`;
+                    }
+                }
+                
                 // Build summary with embedded pills
+                const addDepBtn = `<button class="add-dependency-btn" onclick="openDependencyModal(${index})" title="Add prerequisite">+</button>`;
                 const issueKeyPill = jira.issueKey ? 
                     `<a href="https://example.com" target="_blank" class="issue-key-pill">${escapeHtml(jira.issueKey)}</a>` : '';
                 const issueTypePill = jira.issueType ? 
@@ -1211,6 +1492,8 @@
                 row.innerHTML = `
                     <td class="pinned">
                         <div class="summary-content">
+                            ${addDepBtn}
+                            ${dependencyPill}
                             ${issueKeyPill}
                             ${issueTypePill}
                             ${priorityPill}
@@ -1220,6 +1503,8 @@
                     </td>
                     <td class="pinned"><select class="category-select" data-index="${index}"></select></td>
                     <td><select class="assignee-select" data-index="${index}"></select></td>
+                    <td><input type="text" class="date-input" data-index="${index}" data-field="startDate" value="${jira.startDate || ''}" placeholder="Start Date"></td>
+                    <td><input type="text" class="date-input" data-index="${index}" data-field="endDate" value="${jira.endDate || ''}" placeholder="End Date"></td>
                 `;
                 fragment.appendChild(row);
             });
@@ -1233,6 +1518,19 @@
                 
                 const assigneeSelect = $(`#dataGridBody .assignee-select[data-index="${index}"]`);
                 initializeSelect2(assigneeSelect, jira.assignee, 'assignee');
+            });
+
+            // Initialize flatpickr for date inputs
+            document.querySelectorAll('.date-input').forEach(input => {
+                const index = parseInt(input.dataset.index);
+                const field = input.dataset.field;
+                
+                flatpickr(input, {
+                    dateFormat: 'Y-m-d',
+                    onChange: function(selectedDates, dateStr) {
+                        updateDate(index, field, dateStr);
+                    }
+                });
             });
         }
 
@@ -1317,6 +1615,87 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        }
+
+        function parseDueDate(dateStr) {
+            if (!dateStr) return '';
+            // Expected format: "19/Nov/25 10:52 PM"
+            try {
+                const parts = dateStr.split(' ');
+                if (parts.length < 2) return '';
+                
+                const datePart = parts[0]; // "19/Nov/25"
+                const [day, month, year] = datePart.split('/');
+                
+                // Convert month name to number
+                const months = {
+                    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+                    'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+                    'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+                };
+                
+                const monthNum = months[month.toLowerCase()];
+                if (!monthNum) return '';
+                
+                // Convert 2-digit year to 4-digit
+                const fullYear = '20' + year;
+                
+                // Return in YYYY-MM-DD format
+                return `${fullYear}-${monthNum}-${day.padStart(2, '0')}`;
+            } catch (e) {
+                console.error('Error parsing date:', dateStr, e);
+                return '';
+            }
+        }
+
+        function openDependencyModal(index) {
+            currentDependencyIndex = index;
+            const modal = document.getElementById('dependencyModal');
+            const container = document.getElementById('jiraListContainer');
+            
+            container.innerHTML = '';
+            
+            mappedJiras.forEach((jira, idx) => {
+                if (idx !== index) {
+                    const item = document.createElement('div');
+                    item.className = 'jira-list-item';
+                    item.innerHTML = `
+                        <strong>${escapeHtml(jira.issueKey)}</strong> - ${escapeHtml(jira.summary)}
+                    `;
+                    item.onclick = () => selectDependency(idx);
+                    container.appendChild(item);
+                }
+            });
+            
+            modal.classList.add('active');
+        }
+
+        function closeDependencyModal() {
+            const modal = document.getElementById('dependencyModal');
+            modal.classList.remove('active');
+            currentDependencyIndex = null;
+        }
+
+        function selectDependency(dependencyIndex) {
+            if (currentDependencyIndex !== null) {
+                mappedJiras[currentDependencyIndex].dependency = dependencyIndex;
+                saveJiraData();
+                renderDataGrid();
+            }
+            closeDependencyModal();
+        }
+
+        function removeDependency(index) {
+            mappedJiras[index].dependency = null;
+            saveJiraData();
+            renderDataGrid();
+        }
+
+        function updateDate(index, field, value) {
+            if (mappedJiras[index]) {
+                mappedJiras[index][field] = value;
+                saveJiraData();
+            }
         }
     </script>
 </body>
