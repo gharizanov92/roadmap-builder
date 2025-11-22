@@ -103,7 +103,7 @@
         }
 
         .keyword-row > div {
-            padding: 12px;
+            padding: 8px 12px;
         }
 
         .keyword-row > div:nth-child(1) {
@@ -169,8 +169,8 @@
             background: rgba(255, 255, 255, 0.9);
             border: 1px solid rgba(0, 0, 0, 0.1);
             border-radius: 8px;
-            height: 36px;
-            padding: 4px 8px;
+            height: 32px;
+            padding: 2px 8px;
             transition: all 0.2s ease;
         }
 
@@ -180,14 +180,14 @@
 
         .select2-container--default.select2-container--focus .select2-selection--single,
         .select2-container--default.select2-container--open .select2-selection--single {
-            border-color: rgba(0, 122, 255, 0.5);
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            border-color: rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
             outline: none;
         }
 
         .select2-container--default .select2-selection--single .select2-selection__rendered {
             color: #1d1d1f;
-            line-height: 26px;
+            line-height: 28px;
             padding-left: 4px;
             font-size: 13px;
         }
@@ -197,7 +197,7 @@
         }
 
         .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 34px;
+            height: 30px;
             right: 4px;
         }
 
@@ -217,13 +217,13 @@
         }
 
         .select2-container--default .select2-results__option--highlighted[aria-selected] {
-            background: rgba(0, 122, 255, 0.08);
+            background: rgba(0, 0, 0, 0.04);
             color: #1d1d1f;
         }
 
         .select2-container--default .select2-results__option[aria-selected=true] {
-            background: rgba(0, 122, 255, 0.12);
-            color: #007aff;
+            background: rgba(0, 0, 0, 0.06);
+            color: #1d1d1f;
             font-weight: 500;
         }
 
@@ -241,19 +241,46 @@
 
         .select2-search--dropdown .select2-search__field:focus {
             outline: none;
-            border-color: rgba(0, 122, 255, 0.5);
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            border-color: rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
         }
 
         .select2-container--default .select2-selection--single .select2-selection__clear {
             color: rgba(0, 0, 0, 0.4);
-            font-size: 18px;
-            margin-right: 8px;
+            font-size: 16px;
+            margin-right: 6px;
             transition: color 0.15s ease;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            line-height: 1;
         }
 
         .select2-container--default .select2-selection--single .select2-selection__clear:hover {
             color: #ff3b30;
+            background: transparent !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__clear:focus {
+            outline: none;
+            background: transparent !important;
+        }
+
+        /* Remove any blue backgrounds from Select2 */
+        .select2-results__option--highlighted {
+            background: rgba(0, 0, 0, 0.04) !important;
+            color: #1d1d1f !important;
+        }
+
+        .select2-results__option[aria-selected="true"] {
+            background: rgba(0, 0, 0, 0.06) !important;
+            color: #1d1d1f !important;
+        }
+
+        .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+            background: rgba(0, 0, 0, 0.04) !important;
+            color: #1d1d1f !important;
         }
 
         button {
@@ -349,14 +376,54 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
-        .priority-pill, .status-pill {
+        .priority-pill, .status-pill, .issue-key-pill, .issue-type-pill {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 10px;
             font-weight: 600;
             text-align: center;
-            min-width: 70px;
+            min-width: 55px;
+            line-height: 1.3;
+            white-space: nowrap;
+        }
+
+        .issue-key-pill {
+            background: rgba(0, 122, 255, 0.15);
+            color: #007aff;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            min-width: auto;
+            padding: 2px 7px;
+        }
+
+        .issue-key-pill:hover {
+            background: rgba(0, 122, 255, 0.25);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 122, 255, 0.2);
+        }
+
+        .issue-type-pill {
+            background: rgba(175, 82, 222, 0.15);
+            color: #af52de;
+            min-width: auto;
+            padding: 2px 7px;
+        }
+
+        .summary-content {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+            line-height: 1.4;
+        }
+
+        .summary-text {
+            flex: 1;
+            min-width: 200px;
+            font-size: 13px;
+            line-height: 1.4;
         }
 
         .priority-highest {
@@ -445,11 +512,15 @@
 
         .data-grid th,
         .data-grid td {
-            padding: 12px;
+            padding: 6px 12px;
             border-bottom: 1px solid rgba(0, 0, 0, 0.06);
             text-align: left;
-            white-space: pre-wrap;
-            vertical-align: top;
+            vertical-align: middle;
+            line-height: 1.4;
+        }
+
+        .data-grid td {
+            height: auto;
         }
 
         .data-grid th {
@@ -481,25 +552,19 @@
         .data-grid th:nth-child(1),
         .data-grid td:nth-child(1) {
             left: 0;
-            min-width: 300px;
+            min-width: 500px;
         }
 
         .data-grid th:nth-child(2),
         .data-grid td:nth-child(2) {
-            left: 300px;
+            left: 500px;
             min-width: 200px;
         }
 
         .data-grid th:nth-child(3),
         .data-grid td:nth-child(3) {
-            left: 500px;
-            min-width: 100px;
-        }
-
-        .data-grid th:nth-child(4),
-        .data-grid td:nth-child(4) {
-            left: 600px;
-            min-width: 120px;
+            left: 700px;
+            min-width: 180px;
         }
 
         .data-grid tbody tr:hover {
@@ -568,11 +633,7 @@
                         <tr>
                             <th class="pinned">Summary</th>
                             <th class="pinned">Category</th>
-                            <th class="pinned">Priority</th>
-                            <th class="pinned">Status</th>
                             <th>Assignee</th>
-                            <th>Issue Key</th>
-                            <th>Issue Type</th>
                         </tr>
                     </thead>
                     <tbody id="dataGridBody">
@@ -1136,14 +1197,29 @@
                 const row = document.createElement('tr');
                 const priorityClass = getPriorityClass(jira.priority);
                 const statusClass = getStatusClass(jira.status);
+                
+                // Build summary with embedded pills
+                const issueKeyPill = jira.issueKey ? 
+                    `<a href="https://example.com" target="_blank" class="issue-key-pill">${escapeHtml(jira.issueKey)}</a>` : '';
+                const issueTypePill = jira.issueType ? 
+                    `<span class="issue-type-pill">${escapeHtml(jira.issueType)}</span>` : '';
+                const priorityPill = jira.priority ? 
+                    `<span class="priority-pill ${priorityClass}">${escapeHtml(jira.priority)}</span>` : '';
+                const statusPill = jira.status ? 
+                    `<span class="status-pill ${statusClass}">${escapeHtml(jira.status)}</span>` : '';
+                
                 row.innerHTML = `
-                    <td class="pinned">${escapeHtml(jira.summary)}</td>
+                    <td class="pinned">
+                        <div class="summary-content">
+                            ${issueKeyPill}
+                            ${issueTypePill}
+                            ${priorityPill}
+                            ${statusPill}
+                            <span class="summary-text">${escapeHtml(jira.summary)}</span>
+                        </div>
+                    </td>
                     <td class="pinned"><select class="category-select" data-index="${index}"></select></td>
-                    <td class="pinned"><span class="priority-pill ${priorityClass}">${escapeHtml(jira.priority)}</span></td>
-                    <td class="pinned"><span class="status-pill ${statusClass}">${escapeHtml(jira.status)}</span></td>
                     <td><select class="assignee-select" data-index="${index}"></select></td>
-                    <td>${escapeHtml(jira.issueKey)}</td>
-                    <td>${escapeHtml(jira.issueType)}</td>
                 `;
                 fragment.appendChild(row);
             });
