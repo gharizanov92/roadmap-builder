@@ -221,7 +221,8 @@
                 <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
             </div>
             <div class="actions">
-                <button class="success" onclick="archiveData()">Archive & Clear</button>
+                <button class="success" onclick="archiveData()">Archive</button>
+                <button class="danger" onclick="clearData()">Clear</button>
             </div>
         </div>
 
@@ -235,10 +236,9 @@
                             <th class="pinned">Category</th>
                             <th class="pinned">Priority</th>
                             <th class="pinned">Status</th>
+                            <th>Assignee</th>
                             <th>Issue Key</th>
-                            <th>Issue ID</th>
                             <th>Issue Type</th>
-                            <th>Project Key</th>
                         </tr>
                     </thead>
                     <tbody id="dataGridBody">
@@ -534,10 +534,9 @@
             const columnMap = {
                 summary: headers.findIndex(h => h === 'summary'),
                 issueKey: headers.findIndex(h => h === 'issue key'),
-                issueId: headers.findIndex(h => h === 'issue id'),
                 issueType: headers.findIndex(h => h === 'issue type'),
                 status: headers.findIndex(h => h === 'status'),
-                projectKey: headers.findIndex(h => h === 'project key'),
+                assignee: headers.findIndex(h => h === 'assignee'),
                 priority: headers.findIndex(h => h === 'priority')
             };
 
@@ -550,10 +549,9 @@
                 const jira = {
                     summary: (values[columnMap.summary] || '').trim(),
                     issueKey: (values[columnMap.issueKey] || '').trim(),
-                    issueId: (values[columnMap.issueId] || '').trim(),
                     issueType: (values[columnMap.issueType] || '').trim(),
                     status: (values[columnMap.status] || '').trim(),
-                    projectKey: (values[columnMap.projectKey] || '').trim(),
+                    assignee: (values[columnMap.assignee] || '').trim(),
                     priority: (values[columnMap.priority] || '').trim(),
                     category: '',
                     manualCategory: false
@@ -631,10 +629,9 @@
                     <td class="pinned"><select class="category-select" data-index="${index}"></select></td>
                     <td class="pinned">${escapeHtml(jira.priority)}</td>
                     <td class="pinned">${escapeHtml(jira.status)}</td>
+                    <td>${escapeHtml(jira.assignee)}</td>
                     <td>${escapeHtml(jira.issueKey)}</td>
-                    <td>${escapeHtml(jira.issueId)}</td>
                     <td>${escapeHtml(jira.issueType)}</td>
-                    <td>${escapeHtml(jira.projectKey)}</td>
                 `;
                 fragment.appendChild(row);
             });
@@ -677,6 +674,19 @@
             // Download keyword mapping archive
             downloadFile(`keyword_mapping_${timestamp}.json`, keywordArchive);
             
+            alert('Data archived successfully! Files downloaded.');
+        }
+
+        function clearData() {
+            if (mappedJiras.length === 0) {
+                alert('No data to clear');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to clear all mapped issues? This cannot be undone.')) {
+                return;
+            }
+            
             // Clear mapped jiras
             mappedJiras = [];
             localStorage.setItem('mapped_jiras.json', JSON.stringify(mappedJiras));
@@ -685,7 +695,7 @@
             // Reset file input
             document.getElementById('csvFile').value = '';
             
-            alert('Data archived successfully! Files downloaded.');
+            alert('Data cleared successfully!');
         }
 
         function downloadFile(filename, content) {
