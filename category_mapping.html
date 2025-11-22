@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category Mapping Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .section {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .keyword-grid {
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .keyword-row {
+            display: table-row;
+        }
+
+        .keyword-row > div {
+            display: table-cell;
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .keyword-header {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .select2-container {
+            width: 100% !important;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        button.danger:hover {
+            background: #c82333;
+        }
+
+        button.success {
+            background: #28a745;
+        }
+
+        button.success:hover {
+            background: #218838;
+        }
+
+        .file-upload {
+            margin: 15px 0;
+        }
+
+        .grid-container {
+            overflow-x: auto;
+            margin-top: 15px;
+            max-height: 600px;
+            border: 1px solid #ddd;
+        }
+
+        .data-grid {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .data-grid th,
+        .data-grid td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+            white-space: pre-wrap;
+            vertical-align: top;
+        }
+
+        .data-grid th {
+            background: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .data-grid th.pinned,
+        .data-grid td.pinned {
+            position: sticky;
+            background: white;
+            z-index: 5;
+        }
+
+        .data-grid th.pinned {
+            background: #f8f9fa;
+            z-index: 15;
+        }
+
+        .data-grid th:nth-child(1),
+        .data-grid td:nth-child(1) {
+            left: 0;
+            min-width: 300px;
+        }
+
+        .data-grid th:nth-child(2),
+        .data-grid td:nth-child(2) {
+            left: 300px;
+            min-width: 200px;
+        }
+
+        .data-grid th:nth-child(3),
+        .data-grid td:nth-child(3) {
+            left: 500px;
+            min-width: 100px;
+        }
+
+        .data-grid th:nth-child(4),
+        .data-grid td:nth-child(4) {
+            left: 600px;
+            min-width: 120px;
+        }
+
+        .data-grid tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h2>Keyword Mapping Rules</h2>
+            <div class="keyword-grid" id="keywordGrid">
+                <div class="keyword-row keyword-header">
+                    <div style="width: 50%">Regular Expression</div>
+                    <div style="width: 40%">Category</div>
+                    <div style="width: 10%">Actions</div>
+                </div>
+            </div>
+            <button onclick="addKeywordRow()">Add Rule</button>
+        </div>
+
+        <div class="section">
+            <h2>Import CSV</h2>
+            <div class="file-upload">
+                <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
+            </div>
+            <div class="actions">
+                <button class="success" onclick="archiveData()">Archive & Clear</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Mapped Issues</h2>
+            <div class="grid-container">
+                <table class="data-grid" id="dataGrid">
+                    <thead>
+                        <tr>
+                            <th class="pinned">Summary</th>
+                            <th class="pinned">Category</th>
+                            <th class="pinned">Priority</th>
+                            <th class="pinned">Status</th>
+                            <th>Issue Key</th>
+                            <th>Issue ID</th>
+                            <th>Issue Type</th>
+                            <th>Project Key</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataGridBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        let keywordMappings = [];
+        let mappedJiras = [];
+        let categories = new Set();
+        let keywordRowCounter = 0;
+        let isLoading = false;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+        });
+
+        function loadData() {
+            isLoading = true;
+            
+            // Load keyword mappings
+            const savedKeywords = localStorage.getItem('keyword_mapping.json');
+            if (savedKeywords) {
+                keywordMappings = JSON.parse(savedKeywords);
+                keywordMappings.forEach(mapping => {
+                    if (mapping.category) categories.add(mapping.category);
+                });
+                keywordMappings.forEach(mapping => {
+                    addKeywordRow(mapping.regex, mapping.category);
+                });
+            } else {
+                addKeywordRow(); // Add one empty row
+            }
+
+            // Load mapped jiras
+            const savedJiras = localStorage.getItem('mapped_jiras.json');
+            if (savedJiras) {
+                mappedJiras = JSON.parse(savedJiras);
+                mappedJiras.forEach(jira => {
+                    if (jira.category) categories.add(jira.category);
+                });
+                renderDataGrid();
+            }
+            
+            isLoading = false;
+        }
+
+        function addKeywordRow(regex = '', category = '') {
+            const rowId = `keyword-row-${keywordRowCounter++}`;
+            const grid = document.getElementById('keywordGrid');
+            
+            const row = document.createElement('div');
+            row.className = 'keyword-row';
+            row.id = rowId;
+            row.innerHTML = `
+                <div><input type="text" class="regex-input" value="${escapeHtml(regex)}" onchange="saveKeywordMappings()"></div>
+                <div><select class="category-select"></select></div>
+                <div><button class="delete-btn" onclick="deleteKeywordRow('${rowId}')">Delete</button></div>
+            `;
+            
+            grid.appendChild(row);
+            
+            // Initialize select2
+            const select = $(row).find('.category-select');
+            initializeSelect2(select, category, 'keyword');
+        }
+
+        function deleteKeywordRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.remove();
+                saveKeywordMappings();
+            }
+        }
+
+        function bindSelect2Events(element, type) {
+            element.on('select2:select', function(e) {
+                if (isLoading) return;
+                
+                const newCategory = e.params.data.id;
+                if (!categories.has(newCategory)) {
+                    categories.add(newCategory);
+                    updateAllSelect2Options();
+                }
+                
+                if (type === 'keyword') {
+                    saveKeywordMappings();
+                } else {
+                    const idx = $(this).data('index');
+                    if (idx !== undefined) {
+                        mappedJiras[idx].category = newCategory;
+                        mappedJiras[idx].manualCategory = true;
+                        saveJiraData();
+                    }
+                }
+            });
+
+            element.on('select2:unselect', function() {
+                if (isLoading) return;
+                
+                if (type === 'keyword') {
+                    saveKeywordMappings();
+                } else {
+                    const idx = $(this).data('index');
+                    if (idx !== undefined) {
+                        mappedJiras[idx].category = '';
+                        mappedJiras[idx].manualCategory = true;
+                        saveJiraData();
+                    }
+                }
+            });
+        }
+
+        function initializeSelect2(element, initialValue = '', type = 'keyword') {
+            const data = Array.from(categories).map(cat => ({ id: cat, text: cat }));
+            
+            element.select2({
+                data: data,
+                tags: true,
+                placeholder: 'Select or type category',
+                allowClear: true,
+                createTag: function(params) {
+                    const term = $.trim(params.term);
+                    if (term === '') return null;
+                    return {
+                        id: term,
+                        text: term,
+                        newTag: true
+                    };
+                }
+            });
+
+            if (initialValue) {
+                if (!categories.has(initialValue)) {
+                    categories.add(initialValue);
+                    const newOption = new Option(initialValue, initialValue, true, true);
+                    element.append(newOption);
+                }
+                element.val(initialValue).trigger('change.select2');
+            }
+
+            // Bind events
+            bindSelect2Events(element, type);
+        }
+
+        function updateAllSelect2Options() {
+            if (isLoading) return;
+            
+            // Temporarily set loading to prevent cascading updates
+            const wasLoading = isLoading;
+            isLoading = true;
+            
+            const data = Array.from(categories).map(cat => ({ id: cat, text: cat }));
+            
+            $('.category-select').each(function() {
+                const currentValue = $(this).val();
+                const $select = $(this);
+                
+                // Unbind events before destroying
+                $select.off('select2:select select2:unselect');
+                
+                // Destroy and recreate to update options
+                $select.select2('destroy');
+                $select.empty();
+                
+                // Add all options
+                data.forEach(item => {
+                    const option = new Option(item.text, item.id, false, false);
+                    $select.append(option);
+                });
+                
+                // Reinitialize
+                $select.select2({
+                    data: data,
+                    tags: true,
+                    placeholder: 'Select or type category',
+                    allowClear: true
+                });
+                
+                // Restore value without triggering change
+                if (currentValue) {
+                    $select.val(currentValue).trigger('change.select2');
+                }
+                
+                // Rebind events
+                const type = $select.closest('#keywordGrid').length > 0 ? 'keyword' : 'jira';
+                bindSelect2Events($select, type);
+            });
+            
+            isLoading = wasLoading;
+        }
+
+        function saveKeywordMappings() {
+            if (isLoading) return;
+            
+            keywordMappings = [];
+            document.querySelectorAll('.keyword-row:not(.keyword-header)').forEach(row => {
+                const regex = row.querySelector('.regex-input').value;
+                const category = $(row).find('.category-select').val();
+                if (regex || category) {
+                    keywordMappings.push({ regex, category });
+                }
+            });
+            localStorage.setItem('keyword_mapping.json', JSON.stringify(keywordMappings, null, 2));
+            
+            // Re-apply mappings to existing jiras
+            applyKeywordMappings();
+        }
+
+        function applyKeywordMappings() {
+            if (isLoading || mappedJiras.length === 0) return;
+            
+            // Set loading flag to prevent cascading updates
+            isLoading = true;
+            
+            let changed = false;
+            mappedJiras.forEach(jira => {
+                if (!jira.manualCategory) {
+                    const newCategory = matchCategory(jira.summary);
+                    if (jira.category !== newCategory) {
+                        jira.category = newCategory;
+                        changed = true;
+                    }
+                }
+            });
+            
+            if (changed) {
+                renderDataGrid();
+                localStorage.setItem('mapped_jiras.json', JSON.stringify(mappedJiras, null, 2));
+            }
+            
+            isLoading = false;
+        }
+
+        function matchCategory(summary) {
+            if (!summary) return '';
+            
+            for (const mapping of keywordMappings) {
+                if (mapping.regex && mapping.category) {
+                    try {
+                        const regex = new RegExp(mapping.regex, 'i');
+                        if (regex.test(summary)) {
+                            return mapping.category;
+                        }
+                    } catch (e) {
+                        console.error('Invalid regex:', mapping.regex, e);
+                    }
+                }
+            }
+            return '';
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            isLoading = true;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    parseCSV(text);
+                } catch (error) {
+                    console.error('Error parsing CSV:', error);
+                    alert('Error parsing CSV file: ' + error.message);
+                } finally {
+                    isLoading = false;
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(text) {
+            // Parse CSV properly handling newlines within quoted fields
+            const rows = parseCSVRows(text);
+            
+            if (rows.length < 2) {
+                isLoading = false;
+                return;
+            }
+
+            // Parse headers properly
+            const headers = rows[0].map(h => h.toLowerCase().trim());
+            
+            // Find column indices (case insensitive)
+            const columnMap = {
+                summary: headers.findIndex(h => h === 'summary'),
+                issueKey: headers.findIndex(h => h === 'issue key'),
+                issueId: headers.findIndex(h => h === 'issue id'),
+                issueType: headers.findIndex(h => h === 'issue type'),
+                status: headers.findIndex(h => h === 'status'),
+                projectKey: headers.findIndex(h => h === 'project key'),
+                priority: headers.findIndex(h => h === 'priority')
+            };
+
+            mappedJiras = [];
+            
+            for (let i = 1; i < rows.length; i++) {
+                const values = rows[i];
+                if (values.length === 0 || values.every(v => !v)) continue;
+                
+                const jira = {
+                    summary: (values[columnMap.summary] || '').trim(),
+                    issueKey: (values[columnMap.issueKey] || '').trim(),
+                    issueId: (values[columnMap.issueId] || '').trim(),
+                    issueType: (values[columnMap.issueType] || '').trim(),
+                    status: (values[columnMap.status] || '').trim(),
+                    projectKey: (values[columnMap.projectKey] || '').trim(),
+                    priority: (values[columnMap.priority] || '').trim(),
+                    category: '',
+                    manualCategory: false
+                };
+
+                jira.category = matchCategory(jira.summary);
+                if (jira.category) categories.add(jira.category);
+                
+                mappedJiras.push(jira);
+            }
+
+            // Render and save while still in loading state
+            renderDataGrid();
+            localStorage.setItem('mapped_jiras.json', JSON.stringify(mappedJiras, null, 2));
+        }
+
+        function parseCSVRows(text) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
+                
+                if (char === '"' && nextChar === '"' && inQuotes) {
+                    // Escaped quote
+                    currentField += '"';
+                    i++; // Skip next quote
+                } else if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    currentRow.push(currentField);
+                    currentField = '';
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                    // End of row
+                    if (char === '\r' && nextChar === '\n') {
+                        i++; // Skip \n in \r\n
+                    }
+                    currentRow.push(currentField);
+                    if (currentRow.length > 0 && currentRow.some(f => f.trim())) {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentField = '';
+                } else {
+                    currentField += char;
+                }
+            }
+            
+            // Add last field and row
+            if (currentField || currentRow.length > 0) {
+                currentRow.push(currentField);
+                if (currentRow.some(f => f.trim())) {
+                    rows.push(currentRow);
+                }
+            }
+            
+            return rows;
+        }
+
+
+
+        function renderDataGrid() {
+            const tbody = document.getElementById('dataGridBody');
+            tbody.innerHTML = '';
+
+            const fragment = document.createDocumentFragment();
+
+            mappedJiras.forEach((jira, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="pinned">${escapeHtml(jira.summary)}</td>
+                    <td class="pinned"><select class="category-select" data-index="${index}"></select></td>
+                    <td class="pinned">${escapeHtml(jira.priority)}</td>
+                    <td class="pinned">${escapeHtml(jira.status)}</td>
+                    <td>${escapeHtml(jira.issueKey)}</td>
+                    <td>${escapeHtml(jira.issueId)}</td>
+                    <td>${escapeHtml(jira.issueType)}</td>
+                    <td>${escapeHtml(jira.projectKey)}</td>
+                `;
+                fragment.appendChild(row);
+            });
+
+            tbody.appendChild(fragment);
+
+            // Initialize select2 after all rows are added
+            mappedJiras.forEach((jira, index) => {
+                const select = $(`#dataGridBody .category-select[data-index="${index}"]`);
+                initializeSelect2(select, jira.category, 'jira');
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function saveJiraData() {
+            if (isLoading) return;
+            localStorage.setItem('mapped_jiras.json', JSON.stringify(mappedJiras, null, 2));
+        }
+
+        function archiveData() {
+            if (mappedJiras.length === 0) {
+                alert('No data to archive');
+                return;
+            }
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            
+            // Create archive files
+            const jiraArchive = JSON.stringify(mappedJiras, null, 2);
+            const keywordArchive = JSON.stringify(keywordMappings, null, 2);
+            
+            // Download jira archive
+            downloadFile(`mapped_jiras_${timestamp}.json`, jiraArchive);
+            
+            // Download keyword mapping archive
+            downloadFile(`keyword_mapping_${timestamp}.json`, keywordArchive);
+            
+            // Clear mapped jiras
+            mappedJiras = [];
+            localStorage.setItem('mapped_jiras.json', JSON.stringify(mappedJiras));
+            renderDataGrid();
+            
+            // Reset file input
+            document.getElementById('csvFile').value = '';
+            
+            alert('Data archived successfully! Files downloaded.');
+        }
+
+        function downloadFile(filename, content) {
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
