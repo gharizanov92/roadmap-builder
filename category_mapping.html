@@ -63,24 +63,74 @@
         }
 
         .keyword-grid {
-            display: table;
-            width: 100%;
-            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .keyword-row {
-            display: table-row;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            transition: background 0.2s ease;
+        }
+
+        .keyword-row:last-child {
+            border-bottom: none;
+        }
+
+        .keyword-row.dragging {
+            opacity: 0.5;
+        }
+
+        .keyword-row:not(.keyword-header) {
+            cursor: move;
+        }
+
+        .keyword-row:not(.keyword-header):hover {
+            background: rgba(0, 122, 255, 0.04);
         }
 
         .keyword-row > div {
-            display: table-cell;
-            padding: 8px;
-            border: 1px solid #ddd;
+            padding: 12px;
+        }
+
+        .keyword-row > div:nth-child(1) {
+            width: 60px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .keyword-row > div:nth-child(2) {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .keyword-row > div:nth-child(3) {
+            width: 250px;
+            flex-shrink: 0;
         }
 
         .keyword-header {
-            background: #f8f9fa;
+            background: rgba(248, 249, 250, 0.95);
+            backdrop-filter: blur(10px);
             font-weight: 600;
+            color: #1d1d1f;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: rgba(0, 0, 0, 0.3);
+            font-size: 16px;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
         }
 
         input[type="text"] {
@@ -194,7 +244,7 @@
             box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
         }
 
-        .priority-pill {
+        .priority-pill, .status-pill {
             display: inline-block;
             padding: 4px 12px;
             border-radius: 12px;
@@ -229,13 +279,37 @@
             color: #8e8e93;
         }
 
+        .status-to-do {
+            background: rgba(142, 142, 147, 0.15);
+            color: #8e8e93;
+        }
+
+        .status-in-progress {
+            background: rgba(0, 122, 255, 0.15);
+            color: #007aff;
+        }
+
+        .status-done {
+            background: rgba(52, 199, 89, 0.15);
+            color: #34c759;
+        }
+
+        .status-blocked {
+            background: rgba(255, 59, 48, 0.15);
+            color: #ff3b30;
+        }
+
+        .status-review {
+            background: rgba(175, 82, 222, 0.15);
+            color: #af52de;
+        }
+
         .grid-container {
             overflow-x: auto;
-            margin-top: 15px;
             max-height: 600px;
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.6);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .data-grid {
@@ -246,8 +320,8 @@
 
         .data-grid th,
         .data-grid td {
-            padding: 10px;
-            border: 1px solid #ddd;
+            padding: 12px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
             text-align: left;
             white-space: pre-wrap;
             vertical-align: top;
@@ -260,6 +334,9 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            color: #1d1d1f;
+            font-size: 13px;
+            letter-spacing: 0.3px;
         }
 
         .data-grid th.pinned,
@@ -330,6 +407,20 @@
             <div class="section-header">
                 <div class="header-actions">
                     <button onclick="addKeywordRow()"><i class="fas fa-plus"></i> Add Rule</button>
+                </div>
+            </div>
+            <div class="keyword-grid" id="keywordGrid">
+                <div class="keyword-row keyword-header">
+                    <div>Actions</div>
+                    <div>Regular Expression</div>
+                    <div>Category</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <div class="header-actions">
                     <div class="file-input-wrapper">
                         <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
                         <label for="csvFile" class="file-input-label">
@@ -340,17 +431,6 @@
                     <button class="danger" onclick="clearData()"><i class="fas fa-trash"></i> Clear</button>
                 </div>
             </div>
-            <div class="keyword-grid" id="keywordGrid">
-                <div class="keyword-row keyword-header">
-                    <div style="width: 50%">Regular Expression</div>
-                    <div style="width: 40%">Category</div>
-                    <div style="width: 10%">Actions</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Mapped Issues</h2>
             <div class="grid-container">
                 <table class="data-grid" id="dataGrid">
                     <thead>
@@ -440,17 +520,70 @@
             const row = document.createElement('div');
             row.className = 'keyword-row';
             row.id = rowId;
+            row.draggable = true;
             row.innerHTML = `
+                <div>
+                    <i class="fas fa-grip-vertical drag-handle"></i>
+                    <button class="delete-btn" onclick="deleteKeywordRow('${rowId}')"><i class="fas fa-trash"></i></button>
+                </div>
                 <div><input type="text" class="regex-input" value="${escapeHtml(regex)}" onchange="saveKeywordMappings()"></div>
                 <div><select class="category-select"></select></div>
-                <div><button class="delete-btn" onclick="deleteKeywordRow('${rowId}')"><i class="fas fa-trash"></i></button></div>
             `;
             
             grid.appendChild(row);
             
+            // Add drag and drop event listeners
+            row.addEventListener('dragstart', handleDragStart);
+            row.addEventListener('dragover', handleDragOver);
+            row.addEventListener('drop', handleDrop);
+            row.addEventListener('dragend', handleDragEnd);
+            
             // Initialize select2
             const select = $(row).find('.category-select');
             initializeSelect2(select, category, 'keyword');
+        }
+
+        let draggedElement = null;
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            
+            const target = e.target.closest('.keyword-row');
+            if (target && target !== draggedElement && !target.classList.contains('keyword-header')) {
+                const rect = target.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                
+                if (e.clientY < midpoint) {
+                    target.parentNode.insertBefore(draggedElement, target);
+                } else {
+                    target.parentNode.insertBefore(draggedElement, target.nextSibling);
+                }
+            }
+            
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            draggedElement = null;
+            saveKeywordMappings();
         }
 
         function deleteKeywordRow(rowId) {
@@ -871,11 +1004,12 @@
             mappedJiras.forEach((jira, index) => {
                 const row = document.createElement('tr');
                 const priorityClass = getPriorityClass(jira.priority);
+                const statusClass = getStatusClass(jira.status);
                 row.innerHTML = `
                     <td class="pinned">${escapeHtml(jira.summary)}</td>
                     <td class="pinned"><select class="category-select" data-index="${index}"></select></td>
                     <td class="pinned"><span class="priority-pill ${priorityClass}">${escapeHtml(jira.priority)}</span></td>
-                    <td class="pinned">${escapeHtml(jira.status)}</td>
+                    <td class="pinned"><span class="status-pill ${statusClass}">${escapeHtml(jira.status)}</span></td>
                     <td><select class="assignee-select" data-index="${index}"></select></td>
                     <td>${escapeHtml(jira.issueKey)}</td>
                     <td>${escapeHtml(jira.issueType)}</td>
@@ -903,6 +1037,16 @@
             if (p.includes('low') && !p.includes('lowest')) return 'priority-low';
             if (p.includes('lowest')) return 'priority-lowest';
             return 'priority-medium';
+        }
+
+        function getStatusClass(status) {
+            const s = status.toLowerCase();
+            if (s.includes('done') || s.includes('closed') || s.includes('resolved')) return 'status-done';
+            if (s.includes('in progress') || s.includes('in-progress') || s.includes('development')) return 'status-in-progress';
+            if (s.includes('blocked') || s.includes('impediment')) return 'status-blocked';
+            if (s.includes('review') || s.includes('testing') || s.includes('qa')) return 'status-review';
+            if (s.includes('to do') || s.includes('todo') || s.includes('open') || s.includes('backlog')) return 'status-to-do';
+            return 'status-to-do';
         }
 
         function escapeHtml(text) {
