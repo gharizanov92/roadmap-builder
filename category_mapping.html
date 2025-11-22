@@ -64,9 +64,19 @@
 
         .keyword-grid {
             background: rgba(255, 255, 255, 0.9);
-            border-radius: 16px;
+            border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .keyword-row:first-child {
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+
+        .keyword-row:last-child {
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
         }
 
         .keyword-row {
@@ -154,61 +164,155 @@
             width: 100% !important;
         }
 
+        /* Select2 Custom Styling */
+        .select2-container--default .select2-selection--single {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            height: 36px;
+            padding: 4px 8px;
+            transition: all 0.2s ease;
+        }
+
+        .select2-container--default .select2-selection--single:hover {
+            border-color: rgba(0, 0, 0, 0.15);
+        }
+
+        .select2-container--default.select2-container--focus .select2-selection--single,
+        .select2-container--default.select2-container--open .select2-selection--single {
+            border-color: rgba(0, 122, 255, 0.5);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+            outline: none;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #1d1d1f;
+            line-height: 26px;
+            padding-left: 4px;
+            font-size: 13px;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: rgba(0, 0, 0, 0.4);
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 34px;
+            right: 4px;
+        }
+
+        .select2-dropdown {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+            margin-top: 4px;
+        }
+
+        .select2-container--default .select2-results__option {
+            padding: 8px 12px;
+            font-size: 13px;
+            transition: background 0.15s ease;
+        }
+
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background: rgba(0, 122, 255, 0.08);
+            color: #1d1d1f;
+        }
+
+        .select2-container--default .select2-results__option[aria-selected=true] {
+            background: rgba(0, 122, 255, 0.12);
+            color: #007aff;
+            font-weight: 500;
+        }
+
+        .select2-search--dropdown {
+            padding: 8px;
+        }
+
+        .select2-search--dropdown .select2-search__field {
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .select2-search--dropdown .select2-search__field:focus {
+            outline: none;
+            border-color: rgba(0, 122, 255, 0.5);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__clear {
+            color: rgba(0, 0, 0, 0.4);
+            font-size: 18px;
+            margin-right: 8px;
+            transition: color 0.15s ease;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+            color: #ff3b30;
+        }
+
         button {
-            padding: 10px 18px;
-            background: rgba(0, 122, 255, 0.9);
+            padding: 9px 16px;
+            background: linear-gradient(180deg, #007aff 0%, #0051d5 100%);
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            letter-spacing: -0.2px;
         }
 
         button:hover {
-            background: rgba(0, 122, 255, 1);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            background: linear-gradient(180deg, #0077ed 0%, #004ec7 100%);
+            transform: translateY(-0.5px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         button:active {
             transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
         }
 
         button.danger {
-            background: rgba(255, 59, 48, 0.9);
-            box-shadow: 0 2px 8px rgba(255, 59, 48, 0.2);
+            background: linear-gradient(180deg, #ff3b30 0%, #d32f2f 100%);
+            box-shadow: 0 1px 3px rgba(255, 59, 48, 0.3), 0 1px 2px rgba(0, 0, 0, 0.08);
         }
 
         button.danger:hover {
-            background: rgba(255, 59, 48, 1);
-            box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+            background: linear-gradient(180deg, #ff2d20 0%, #c62828 100%);
+            box-shadow: 0 2px 6px rgba(255, 59, 48, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         button.success {
-            background: rgba(52, 199, 89, 0.9);
-            box-shadow: 0 2px 8px rgba(52, 199, 89, 0.2);
+            background: linear-gradient(180deg, #34c759 0%, #28a745 100%);
+            box-shadow: 0 1px 3px rgba(52, 199, 89, 0.3), 0 1px 2px rgba(0, 0, 0, 0.08);
         }
 
         button.success:hover {
-            background: rgba(52, 199, 89, 1);
-            box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
+            background: linear-gradient(180deg, #30d158 0%, #248a3d 100%);
+            box-shadow: 0 2px 6px rgba(52, 199, 89, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         button.secondary {
-            background: rgba(142, 142, 147, 0.2);
+            background: rgba(142, 142, 147, 0.12);
             color: #1d1d1f;
-            box-shadow: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
         }
 
         button.secondary:hover {
-            background: rgba(142, 142, 147, 0.3);
-            box-shadow: none;
+            background: rgba(142, 142, 147, 0.18);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         }
 
         .file-input-wrapper {
@@ -224,24 +328,25 @@
         }
 
         .file-input-label {
-            padding: 10px 18px;
-            background: rgba(0, 122, 255, 0.9);
+            padding: 9px 16px;
+            background: linear-gradient(180deg, #007aff 0%, #0051d5 100%);
             color: white;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            letter-spacing: -0.2px;
         }
 
         .file-input-label:hover {
-            background: rgba(0, 122, 255, 1);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            background: linear-gradient(180deg, #0077ed 0%, #004ec7 100%);
+            transform: translateY(-0.5px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .priority-pill, .status-pill {
@@ -307,9 +412,29 @@
         .grid-container {
             overflow-x: auto;
             max-height: 600px;
-            border-radius: 16px;
+            border-radius: 12px;
             background: rgba(255, 255, 255, 0.9);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .data-grid thead tr:first-child th:first-child {
+            border-top-left-radius: 12px;
+        }
+
+        .data-grid thead tr:first-child th:last-child {
+            border-top-right-radius: 12px;
+        }
+
+        .data-grid tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-grid tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 12px;
+        }
+
+        .data-grid tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 12px;
         }
 
         .data-grid {
@@ -382,22 +507,28 @@
         }
 
         .delete-btn {
-            background: rgba(255, 59, 48, 0.9);
+            background: linear-gradient(180deg, #ff3b30 0%, #d32f2f 100%);
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 6px rgba(255, 59, 48, 0.2);
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 3px rgba(255, 59, 48, 0.3), 0 1px 2px rgba(0, 0, 0, 0.08);
+            letter-spacing: -0.2px;
         }
 
         .delete-btn:hover {
-            background: rgba(255, 59, 48, 1);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 10px rgba(255, 59, 48, 0.3);
+            background: linear-gradient(180deg, #ff2d20 0%, #c62828 100%);
+            transform: translateY(-0.5px);
+            box-shadow: 0 2px 6px rgba(255, 59, 48, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .delete-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(255, 59, 48, 0.3);
         }
     </style>
 </head>
