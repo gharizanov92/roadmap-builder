@@ -232,43 +232,7 @@
             border-bottom-right-radius: 12px;
         }
 
-        .collapsible-header {
-            cursor: pointer;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 0;
-        }
 
-        .collapsible-header h3 {
-            margin: 0;
-            color: #1d1d1f;
-            font-size: 18px;
-            font-weight: 600;
-            letter-spacing: -0.3px;
-        }
-
-        .collapse-icon {
-            transition: transform 0.2s ease;
-            color: rgba(0, 0, 0, 0.5);
-        }
-
-        .collapse-icon.collapsed {
-            transform: rotate(-90deg);
-        }
-
-        .collapsible-content {
-            max-height: 1000px;
-            overflow: hidden;
-            transition: max-height 0.3s ease, opacity 0.3s ease;
-            opacity: 1;
-        }
-
-        .collapsible-content.collapsed {
-            max-height: 0;
-            opacity: 0;
-        }
 
         .add-dependency-btn {
             background: transparent;
@@ -1325,9 +1289,13 @@
             <div class="sidebar-subtitle">Resource Management</div>
         </div>
         <nav class="sidebar-nav">
-            <div class="nav-item active" onclick="switchView('mapping')">
+            <div class="nav-item active" onclick="switchView('issues')">
                 <i class="fas fa-table"></i>
-                <span>Issue Mapping</span>
+                <span>Issues</span>
+            </div>
+            <div class="nav-item" onclick="switchView('automagic')">
+                <i class="fas fa-wand-magic-sparkles"></i>
+                <span>Automagic</span>
             </div>
             <div class="nav-item" onclick="switchView('gantt')">
                 <i class="fas fa-chart-gantt"></i>
@@ -1361,25 +1329,9 @@
         </div>
 
         <div class="view-container">
-            <!-- Mapping View -->
-            <div class="view active" id="mappingView">
+            <!-- Issues View -->
+            <div class="view active" id="issuesView">
                 <div class="container">
-        <div class="section">
-            <div class="collapsible-header" onclick="toggleCollapse()">
-                <i class="fas fa-chevron-down collapse-icon" id="collapseIcon"></i>
-                <h3>Keyword Mapping Rules</h3>
-            </div>
-            <div class="collapsible-content" id="collapsibleContent">
-                <div class="keyword-grid" id="keywordGrid">
-                    <div class="keyword-row keyword-header">
-                        <div>Actions</div>
-                        <div>Regular Expression</div>
-                        <div>Category</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="section">
             <div class="filter-form">
                 <div class="filter-grid">
@@ -1467,7 +1419,30 @@
         </div>
                 </div>
             </div>
-            <!-- End Mapping View -->
+            <!-- End Issues View -->
+            
+            <!-- Automagic View -->
+            <div class="view" id="automagicView">
+                <div class="container">
+                    <div class="section">
+                        <div class="section-header">
+                            <h2>Keyword Mapping Rules</h2>
+                            <div class="header-actions">
+                                <button onclick="applyKeywordMappings()"><i class="fas fa-wand-magic-sparkles"></i> Apply Rules</button>
+                            </div>
+                        </div>
+                        <p style="color:rgba(0,0,0,0.6);font-size:14px;margin-bottom:20px;">Define regular expression patterns to automatically categorize issues based on their summary text.</p>
+                        <div class="keyword-grid" id="keywordGrid">
+                            <div class="keyword-row keyword-header">
+                                <div>Actions</div>
+                                <div>Regular Expression</div>
+                                <div>Category</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End Automagic View -->
 
             <!-- Gantt View -->
             <div class="view" id="ganttView">
@@ -1629,13 +1604,6 @@
                 // Add a new empty row at the end
                 addKeywordRow('', '', true);
             }
-        }
-
-        function toggleCollapse() {
-            const content = document.getElementById('collapsibleContent');
-            const icon = document.getElementById('collapseIcon');
-            content.classList.toggle('collapsed');
-            icon.classList.toggle('collapsed');
         }
 
         let draggedElement = null;
@@ -2733,9 +2701,12 @@
                 view.classList.remove('active');
             });
             
-            if (viewName === 'mapping') {
-                document.getElementById('mappingView').classList.add('active');
-                document.getElementById('viewTitle').textContent = 'Issue Mapping';
+            if (viewName === 'issues') {
+                document.getElementById('issuesView').classList.add('active');
+                document.getElementById('viewTitle').textContent = 'Issues';
+            } else if (viewName === 'automagic') {
+                document.getElementById('automagicView').classList.add('active');
+                document.getElementById('viewTitle').textContent = 'Automagic';
             } else if (viewName === 'gantt') {
                 document.getElementById('ganttView').classList.add('active');
                 document.getElementById('viewTitle').textContent = 'Gantt Chart';
