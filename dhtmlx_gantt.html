@@ -515,6 +515,15 @@
             pointer-events: none;
         }
         
+        .weekend-background {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.02);
+            z-index: 2;
+            pointer-events: none;
+        }
+        
         .sprint-separator {
             position: absolute;
             top: 0;
@@ -555,6 +564,7 @@
             position: relative;
             height: 50px;
             border-bottom: 1px solid #f0f0f0;
+            z-index: 10;
         }
         
         .epic-pill {
@@ -610,7 +620,7 @@
         .dependency-arrow {
             position: absolute;
             pointer-events: none;
-            z-index: 8;
+            z-index: 5;
         }
         
         .dependency-arrow path {
@@ -681,6 +691,7 @@
     <div id="customExportView">
         <div class="export-header">
             <h2>Roadmap Export View</h2>
+            <div id="debugInfo" style="font-size: 11px; color: #666; margin-left: 12px;"></div>
             <div class="export-actions">
                 <button class="btn-close" onclick="refreshCustomExport()">🔄 Refresh</button>
                 <button class="btn-close" onclick="reconfigureSprints()">⚙️ Configure Sprints</button>
@@ -903,6 +914,21 @@
         }
         
         function openCustomExport() {
+            // Debug: Show localStorage data
+            try {
+                var stored = localStorage.getItem('mapped_jiras.json');
+                if (stored) {
+                    var jiras = JSON.parse(stored);
+                    console.log('=== LocalStorage Data ===');
+                    console.log('Total jiras:', jiras.length);
+                    jiras.filter(j => j.selected && j.category).forEach(function(j) {
+                        console.log(j.issueKey || 'No key', ':', j.startDate, 'to', j.endDate, '| Category:', j.category);
+                    });
+                }
+            } catch(e) {
+                console.error('Error reading localStorage:', e);
+            }
+            
             // Check if all jiras have categories
             var hasUncategorized = false;
             gantt.eachTask(function(task) {
@@ -1022,6 +1048,8 @@
             gantt.eachTask(function(task) {
                 if (task.type !== 'project') {
                     var start = new Date(task.start_date);
+                    start.setHours(0, 0, 0, 0);
+                    
                     var end = new Date(start);
                     end.setDate(end.getDate() + task.duration);
                     
@@ -1123,6 +1151,26 @@
             
             var totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
             
+            // Show debug info
+            var debugInfo = document.getElementById('debugInfo');
+            if (debugInfo) {
+                var epicCount = 0;
+                for (var resId in resources) {
+                    epicCount += resources[resId].epics.length;
+                }
+                debugInfo.textContent = 'Date Range: ' + minDate.toISOString().split('T')[0] + ' to ' + maxDate.toISOString().split('T')[0] + ' (' + totalDays + ' days) | ' + epicCount + ' epics';
+            }
+            
+            // Log epic details for debugging
+            console.log('=== Epic Details ===');
+            for (var resId in resources) {
+                resources[resId].epics.forEach(function(epic) {
+                    var epicEnd = new Date(epic.start_date);
+                    epicEnd.setDate(epicEnd.getDate() + epic.duration);
+                    console.log(epic.text + ': ' + epic.start_date + ' to ' + epicEnd.toISOString().split('T')[0] + ' (' + epic.duration + ' days)');
+                });
+            }
+            
             // Calculate scale factor: size everything as if we're showing 2 sprints
             var scaleFactor = totalDays / twoSprintDays;
             
@@ -1183,6 +1231,26 @@
             
             leftPanel.innerHTML = leftHTML;
             
+            // Calculate weekend positions first
+            var weekendDays = [];
+            var currentDate = new Date(minDate);
+            while (currentDate < maxDate) {
+                var dayOfWeek = currentDate.getDay();
+                if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
+                    var dayOffset = Math.floor((currentDate - minDate) / (1000 * 60 * 60 * 24));
+                    weekendDays.push(dayOffset);
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            // Function to calculate adjusted position accounting for collapsed weekends
+            function getAdjustedPosition(dayOffset) {
+                var weekendsBefore = weekendDays.filter(function(w) { return w < dayOffset; }).length;
+                var workingDays = totalDays - weekendDays.length;
+                var adjustedOffset = dayOffset - weekendsBefore;
+                return (adjustedOffset / (workingDays + weekendDays.length * 0.01)) * 100;
+            }
+            
             // Render right panel (timeline)
             var timelineWidth = scaleFactor * 100; // Width as percentage
             var rightHTML = '<div class="timeline-wrapper" style="width: ' + timelineWidth + '%;">';
@@ -1192,13 +1260,14 @@
             if (sprintConfig && sprints.length > 0) {
                 var calendarDuration = sprintConfig.calendarDuration || sprintConfig.duration || 14;
                 sprints.forEach(function(sprint, index) {
-                    var sprintStartOffset = Math.ceil((sprint.startDate - minDate) / (1000 * 60 * 60 * 24));
+                    var sprintStartOffset = Math.floor((sprint.startDate - minDate) / (1000 * 60 * 60 * 24));
                     var sprintEndDate = new Date(sprint.startDate);
                     sprintEndDate.setDate(sprintEndDate.getDate() + calendarDuration);
-                    var sprintEndOffset = Math.ceil((sprintEndDate - minDate) / (1000 * 60 * 60 * 24));
+                    var sprintEndOffset = Math.floor((sprintEndDate - minDate) / (1000 * 60 * 60 * 24));
                     
-                    var leftPercent = (sprintStartOffset / totalDays) * 100;
-                    var widthPercent = ((sprintEndOffset - sprintStartOffset) / totalDays) * 100;
+                    var leftPercent = getAdjustedPosition(sprintStartOffset);
+                    var rightPercent = getAdjustedPosition(sprintEndOffset);
+                    var widthPercent = rightPercent - leftPercent;
                     
                     rightHTML += '<div class="timeline-month" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%;">' + sprint.label + '</div>';
                 });
@@ -1213,17 +1282,24 @@
             
             rightHTML += '<div class="timeline-body">';
             
+            // Add collapsed weekend markers (1px wide)
+            weekendDays.forEach(function(dayOffset) {
+                var leftPercent = getAdjustedPosition(dayOffset);
+                rightHTML += '<div class="weekend-background" style="left: ' + leftPercent + '%; width: 1px;"></div>';
+            });
+            
             // Add sprint background columns and separator lines
             if (sprintConfig && sprints.length > 0) {
                 var calendarDuration = sprintConfig.calendarDuration || sprintConfig.duration || 14;
                 sprints.forEach(function(sprint, index) {
-                    var sprintStartOffset = Math.ceil((sprint.startDate - minDate) / (1000 * 60 * 60 * 24));
+                    var sprintStartOffset = Math.floor((sprint.startDate - minDate) / (1000 * 60 * 60 * 24));
                     var sprintEndDate = new Date(sprint.startDate);
                     sprintEndDate.setDate(sprintEndDate.getDate() + calendarDuration);
-                    var sprintEndOffset = Math.ceil((sprintEndDate - minDate) / (1000 * 60 * 60 * 24));
+                    var sprintEndOffset = Math.floor((sprintEndDate - minDate) / (1000 * 60 * 60 * 24));
                     
-                    var leftPercent = (sprintStartOffset / totalDays) * 100;
-                    var widthPercent = ((sprintEndOffset - sprintStartOffset) / totalDays) * 100;
+                    var leftPercent = getAdjustedPosition(sprintStartOffset);
+                    var rightPercent = getAdjustedPosition(sprintEndOffset);
+                    var widthPercent = rightPercent - leftPercent;
                     
                     // Alternating background
                     if (index % 2 === 1) {
@@ -1243,15 +1319,24 @@
                 rightHTML += '<div class="timeline-resource-name">' + resource.name + '</div>';
                 
                 resource.epics.forEach(function(epic) {
+                    // Normalize dates to midnight for accurate calculation
                     var start = new Date(epic.start_date);
+                    start.setHours(0, 0, 0, 0);
+                    
                     var end = new Date(start);
                     end.setDate(end.getDate() + epic.duration);
                     
-                    var startOffset = Math.ceil((start - minDate) / (1000 * 60 * 60 * 24));
-                    var width = epic.duration;
+                    // Calculate offset from minDate
+                    var normalizedMinDate = new Date(minDate);
+                    normalizedMinDate.setHours(0, 0, 0, 0);
                     
-                    var leftPercent = (startOffset / totalDays) * 100;
-                    var widthPercent = (width / totalDays) * 100;
+                    var startOffset = Math.floor((start - normalizedMinDate) / (1000 * 60 * 60 * 24));
+                    var endOffset = startOffset + epic.duration;
+                    
+                    // Use adjusted positioning that accounts for collapsed weekends
+                    var leftPercent = getAdjustedPosition(startOffset);
+                    var rightPercent = getAdjustedPosition(endOffset);
+                    var widthPercent = rightPercent - leftPercent;
                     
                     // Clean epic name: remove JIRA key, bracketed tags, dashes, and leading ': '
                     var epicName = epic.text
@@ -1294,6 +1379,30 @@
             
             // Render dependency arrows
             renderDependencyArrows();
+            
+            // Setup window resize listener to refresh arrows
+            setupResizeListener();
+        }
+        
+        var resizeTimeout;
+        function setupResizeListener() {
+            // Remove existing listener if any
+            window.removeEventListener('resize', handleResize);
+            
+            // Add new listener
+            window.addEventListener('resize', handleResize);
+        }
+        
+        function handleResize() {
+            // Debounce the resize event
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function() {
+                // Only refresh if custom export view is active
+                var view = document.getElementById('customExportView');
+                if (view && view.classList.contains('active')) {
+                    renderDependencyArrows();
+                }
+            }, 250);
         }
         
         function renderDependencyArrows() {
@@ -1347,11 +1456,17 @@
             var targetRect = targetPill.getBoundingClientRect();
             var containerRect = container.getBoundingClientRect();
             
-            // Calculate positions relative to container
-            var startX = sourceRect.right - containerRect.left;
-            var startY = sourceRect.top + sourceRect.height / 2 - containerRect.top;
-            var endX = targetRect.left - containerRect.left;
-            var endY = targetRect.top + targetRect.height / 2 - containerRect.top;
+            // Get scroll offset
+            var scrollLeft = container.scrollLeft || 0;
+            var scrollTop = container.scrollTop || 0;
+            
+            // Calculate positions relative to container including scroll
+            var startX = sourceRect.right - containerRect.left + scrollLeft;
+            var startY = sourceRect.top + sourceRect.height / 2 - containerRect.top + scrollTop;
+            var endX = targetRect.left - containerRect.left + scrollLeft;
+            var endY = targetRect.top + targetRect.height / 2 - containerRect.top + scrollTop;
+            
+            console.log('Drawing arrow:', {startX, startY, endX, endY, gap: endX - startX});
             
             // Create SVG element
             var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
