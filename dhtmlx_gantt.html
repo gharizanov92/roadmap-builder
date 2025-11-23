@@ -225,7 +225,6 @@
         
         .progress-circle-fill {
             fill: none;
-            stroke: #007aff;
             stroke-width: 3;
             stroke-linecap: round;
             transition: stroke-dashoffset 0.3s ease;
@@ -292,18 +291,48 @@
             position: absolute;
             height: 32px;
             top: 9px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 16px;
             padding: 0 16px;
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            gap: 12px;
             color: white;
             font-size: 12px;
             font-weight: 600;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        
+        .epic-pill-progress-bg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 16px;
+            transition: width 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .epic-pill-name {
+            flex: 1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .epic-pill-progress {
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.25);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
         }
         
         #exportBar .label {
@@ -527,18 +556,53 @@
             view.classList.remove('active');
         }
         
+        // Define 20 distinct color gradients (toned down)
+        var colorPalette = [
+            'linear-gradient(135deg, #7b8cde 0%, #8d6fa8 100%)', // Purple-Blue
+            'linear-gradient(135deg, #d88fa8 0%, #d17b8a 100%)', // Pink-Red
+            'linear-gradient(135deg, #6ba3d4 0%, #5db8c4 100%)', // Blue-Cyan
+            'linear-gradient(135deg, #6db88a 0%, #5db8a8 100%)', // Green-Teal
+            'linear-gradient(135deg, #d18a9a 0%, #d4b87a 100%)', // Pink-Yellow
+            'linear-gradient(135deg, #5ba8b4 0%, #5a6b8a 100%)', // Cyan-Purple
+            'linear-gradient(135deg, #a8c9c4 0%, #d4b8c4 100%)', // Mint-Pink
+            'linear-gradient(135deg, #d49a7a 0%, #d48a9a 100%)', // Orange-Pink
+            'linear-gradient(135deg, #d4c4b4 0%, #c4a89a 100%)', // Peach
+            'linear-gradient(135deg, #d48a94 0%, #a8c4d4 100%)', // Red-Blue
+            'linear-gradient(135deg, #c4b4d4 0%, #9ab8d4 100%)', // Lavender-Blue
+            'linear-gradient(135deg, #c4a870 0%, #d4c4a8 100%)', // Gold-Yellow
+            'linear-gradient(135deg, #b89aaa 0%, #d4c4b8 100%)', // Mauve-Cream
+            'linear-gradient(135deg, #8ac4d4 0%, #7a9ac4 100%)', // Sky-Blue
+            'linear-gradient(135deg, #d4c49a 0%, #b8d4d4 100%)', // Yellow-Cyan
+            'linear-gradient(135deg, #9a8ac4 0%, #a8c4b8 100%)', // Purple-Mint
+            'linear-gradient(135deg, #c4b4d4 0%, #b8c4b8 100%)', // Lilac-Gray
+            'linear-gradient(135deg, #94c4a8 0%, #c4d49a 100%)', // Green-Yellow
+            'linear-gradient(135deg, #d4a89a 0%, #c4b89a 100%)', // Coral-Gold
+            'linear-gradient(135deg, #9ab4d4 0%, #b4c4d4 100%)'  // Blue-Sky
+        ];
+        
+        // Solid colors for progress circles (matching gradients)
+        var solidColors = [
+            '#8d7db8', '#d18a9a', '#6baac4', '#6db89a', '#d4a48a',
+            '#5a8a9a', '#b8c4c4', '#d4949a', '#c4b4a8', '#b8a8b4',
+            '#b4b4d4', '#c4b88a', '#b8a8b8', '#8ab4c4', '#c4d4b8',
+            '#9aa8c4', '#b8b8c4', '#a8c4a8', '#c4b49a', '#a8b8d4'
+        ];
+        
         function renderCustomExport() {
             var leftPanel = document.getElementById('exportLeft');
             var rightPanel = document.getElementById('exportRight');
             
             // Collect data
             var resources = {};
+            var resourceIndex = 0;
             gantt.eachTask(function(task) {
                 if (task.type === 'project') {
                     resources[task.id] = {
                         name: task.text,
-                        epics: []
+                        epics: [],
+                        colorIndex: resourceIndex % colorPalette.length
                     };
+                    resourceIndex++;
                 } else if (task.parent) {
                     if (resources[task.parent]) {
                         console.log('Epic:', task.text, 'Progress:', task.progress, 'as %:', Math.round(task.progress * 100));
@@ -598,6 +662,7 @@
                     var progress = Math.round(epic.progress * 100);
                     var circumference = 2 * Math.PI * 16;
                     var offset = circumference - (progress / 100) * circumference;
+                    var circleColor = solidColors[resource.colorIndex];
                     
                     // Remove JIRA key from epic name (assumes format like "PROJ-123 Summary")
                     var epicName = epic.text.replace(/^[A-Z]+-\d+\s*/, '');
@@ -609,6 +674,7 @@
                     leftHTML += '<svg width="36" height="36">';
                     leftHTML += '<circle class="progress-circle-bg" cx="18" cy="18" r="16"></circle>';
                     leftHTML += '<circle class="progress-circle-fill" cx="18" cy="18" r="16" ';
+                    leftHTML += 'stroke="' + circleColor + '" ';
                     leftHTML += 'stroke-dasharray="' + circumference + '" ';
                     leftHTML += 'stroke-dashoffset="' + offset + '"></circle>';
                     leftHTML += '</svg>';
@@ -651,10 +717,15 @@
                     
                     // Remove JIRA key from epic name
                     var epicName = epic.text.replace(/^[A-Z]+-\d+\s*/, '');
+                    var progress = Math.round(epic.progress * 100);
+                    
+                    var pillColor = colorPalette[resource.colorIndex];
                     
                     rightHTML += '<div class="timeline-row">';
-                    rightHTML += '<div class="epic-pill" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%;">';
-                    rightHTML += epicName;
+                    rightHTML += '<div class="epic-pill" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%; background: ' + pillColor + ';">';
+                    rightHTML += '<div class="epic-pill-progress-bg" style="width: ' + progress + '%;"></div>';
+                    rightHTML += '<span class="epic-pill-name">' + epicName + '</span>';
+                    rightHTML += '<span class="epic-pill-progress">' + progress + '%</span>';
                     rightHTML += '</div>';
                     rightHTML += '</div>';
                 });
