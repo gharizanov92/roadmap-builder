@@ -1471,13 +1471,17 @@
 
             <!-- Gantt View -->
             <div class="view" id="ganttView">
-                <iframe id="ganttFrame" src="gann.html" style="width:100%;height:100%;border:none;border-radius:12px;"></iframe>
+                <div class="container" style="height:100%;padding:0;overflow:hidden;">
+                    <iframe id="ganttFrame" src="gann.html" style="width:100%;height:100%;border:none;"></iframe>
+                </div>
             </div>
             <!-- End Gantt View -->
             
             <!-- Timeline View -->
             <div class="view" id="timelineView">
-                <div id="frappeGanttContainer" style="width:100%;height:100%;"></div>
+                <div class="container" style="height:100%;padding:0;overflow:hidden;">
+                    <div id="frappeGanttContainer" style="width:100%;height:100%;"></div>
+                </div>
             </div>
             <!-- End Timeline View -->
         </div>
