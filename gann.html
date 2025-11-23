@@ -58,6 +58,22 @@
   .am5exporting-menu-container {
     display: none !important;
   }
+  
+  /* Hide all interactive controls for clean presentation export */
+  .am5-button,
+  .am5-resize-grip,
+  .am5-scrollbar,
+  .am5gantt-column-header-button,
+  .am5gantt-task-button,
+  .am5gantt-task-grip {
+    display: none !important;
+  }
+  
+  /* Hide drag handles and resize grips */
+  [role="button"],
+  .am5-grip {
+    display: none !important;
+  }
 </style>
 
 <!-- Resources -->
@@ -87,7 +103,7 @@ function renderGanttChart(roadmapData) {
     am5themes_Animated.new(root)
   ]);
 
-  // Gantt chart
+  // Gantt chart - configured for read-only presentation mode
   gantt = root.container.children.push(
     am5gantt.Gantt.new(root, {})
   );
@@ -256,14 +272,213 @@ function exportFullChartToPdf() {
   exportChart('pdf');
 }
 
+// Store the current data for custom export
+var currentRoadmapData = [];
+
 // Listen for messages from parent window
 window.addEventListener('message', function(event) {
   if (event.data && event.data.type === 'updateGantt' && event.data.data) {
+    currentRoadmapData = event.data.data;
     renderGanttChart(event.data.data);
   } else if (event.data && event.data.type === 'exportPdf') {
     exportFullChartToPdf();
   }
 });
+
+// Custom export function - creates a beautiful presentation-ready graphic
+function customExport() {
+  if (!currentRoadmapData || currentRoadmapData.length === 0) {
+    alert('No data to export. Please load data first.');
+    return;
+  }
+  
+  // Create canvas
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+  
+  // Calculate dimensions
+  var padding = 60;
+  var headerHeight = 120;
+  var rowHeight = 50;
+  var labelWidth = 300;
+  var timelineWidth = 1200;
+  
+  // Group by resource
+  var resourceGroups = {};
+  currentRoadmapData.forEach(function(item) {
+    var resource = item.resource || 'Unassigned';
+    if (!resourceGroups[resource]) {
+      resourceGroups[resource] = [];
+    }
+    resourceGroups[resource].push(item);
+  });
+  
+  var resources = Object.keys(resourceGroups);
+  var totalTasks = currentRoadmapData.length;
+  var totalRows = totalTasks + resources.length;
+  
+  canvas.width = labelWidth + timelineWidth + padding * 2;
+  canvas.height = headerHeight + (totalRows * rowHeight) + padding * 2;
+  
+  // Background gradient
+  var gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, '#667eea');
+  gradient.addColorStop(1, '#764ba2');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // White content area
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+  ctx.shadowBlur = 30;
+  ctx.shadowOffsetY = 10;
+  ctx.fillRect(padding, padding, canvas.width - padding * 2, canvas.height - padding * 2);
+  ctx.shadowColor = 'transparent';
+  
+  // Header
+  ctx.fillStyle = '#1d1d1f';
+  ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Project Gantt Chart', padding + 30, padding + 50);
+  
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(totalTasks + ' tasks across ' + resources.length + ' resources', padding + 30, padding + 80);
+  
+  // Find date range
+  var dates = currentRoadmapData.flatMap(function(item) {
+    return [new Date(item.start), new Date(item.end)];
+  });
+  var minDate = new Date(Math.min.apply(null, dates));
+  var maxDate = new Date(Math.max.apply(null, dates));
+  var totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1;
+  
+  // Timeline header
+  var timelineX = padding + labelWidth;
+  var timelineY = headerHeight + padding;
+  
+  // Draw month headers
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  
+  var currentMonth = new Date(minDate);
+  while (currentMonth <= maxDate) {
+    var monthStart = new Date(currentMonth);
+    var monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    if (monthEnd > maxDate) monthEnd = maxDate;
+    
+    var startOffset = (monthStart - minDate) / (1000 * 60 * 60 * 24);
+    var endOffset = (monthEnd - minDate) / (1000 * 60 * 60 * 24);
+    var monthWidth = ((endOffset - startOffset + 1) / totalDays) * timelineWidth;
+    var monthX = timelineX + (startOffset / totalDays) * timelineWidth;
+    
+    ctx.fillText(
+      monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      monthX + monthWidth / 2 - 30,
+      timelineY - 10
+    );
+    
+    currentMonth.setMonth(currentMonth.getMonth() + 1);
+  }
+  
+  // Draw grid lines
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+  ctx.lineWidth = 1;
+  for (var i = 0; i <= totalRows; i++) {
+    var y = timelineY + i * rowHeight;
+    ctx.beginPath();
+    ctx.moveTo(padding + 30, y);
+    ctx.lineTo(canvas.width - padding - 30, y);
+    ctx.stroke();
+  }
+  
+  // Draw tasks
+  var currentY = timelineY;
+  var colors = ['#007aff', '#34c759', '#ff9500', '#af52de', '#ff3b30', '#5ac8fa'];
+  var colorIndex = 0;
+  
+  resources.forEach(function(resource) {
+    // Resource header
+    ctx.fillStyle = '#007aff';
+    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(resource, padding + 40, currentY + 32);
+    
+    currentY += rowHeight;
+    
+    // Tasks
+    resourceGroups[resource].forEach(function(task) {
+      // Task label
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      var taskText = task.name.length > 35 ? task.name.substring(0, 32) + '...' : task.name;
+      ctx.fillText(taskText, padding + 60, currentY + 32);
+      
+      // Task bar
+      var startDate = new Date(task.start);
+      var endDate = new Date(task.end);
+      var startOffset = (startDate - minDate) / (1000 * 60 * 60 * 24);
+      var duration = (endDate - startDate) / (1000 * 60 * 60 * 24) + 1;
+      
+      var barX = timelineX + (startOffset / totalDays) * timelineWidth;
+      var barWidth = (duration / totalDays) * timelineWidth;
+      var barY = currentY + 12;
+      var barHeight = 26;
+      
+      // Bar background
+      var barColor = colors[colorIndex % colors.length];
+      ctx.fillStyle = barColor;
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, barWidth, barHeight, 6);
+      ctx.fill();
+      
+      // Progress overlay
+      if (task.progress > 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.roundRect(barX, barY, barWidth * (task.progress / 100), barHeight, 6);
+        ctx.fill();
+      }
+      
+      // Progress text
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText(task.progress + '%', barX + barWidth / 2 - 12, barY + 17);
+      
+      currentY += rowHeight;
+    });
+    
+    colorIndex++;
+  });
+  
+  // Footer
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Generated on ' + new Date().toLocaleDateString(), padding + 30, canvas.height - padding - 20);
+  
+  // Download
+  canvas.toBlob(function(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'gantt-chart-custom-' + new Date().toISOString().split('T')[0] + '.png';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+// Polyfill for roundRect if not available
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+    this.moveTo(x + radius, y);
+    this.lineTo(x + width - radius, y);
+    this.quadraticCurveTo(x + width, y, x + width, y + radius);
+    this.lineTo(x + width, y + height - radius);
+    this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    this.lineTo(x + radius, y + height);
+    this.quadraticCurveTo(x, y + height, x, y + height - radius);
+    this.lineTo(x, y + radius);
+    this.quadraticCurveTo(x, y, x + radius, y);
+  };
+}
 
 // Initial render with default data
 am5.ready(function () {
@@ -277,5 +492,6 @@ am5.ready(function () {
   <button onclick="exportFullChartToPdf()">📄 PDF</button>
   <button onclick="exportChart('png')">🖼️ PNG</button>
   <button onclick="exportChart('jpg')">📸 JPG</button>
+  <button onclick="customExport()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">✨ Custom Export</button>
 </div>
 <div id="chartdiv"></div>

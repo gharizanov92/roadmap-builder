@@ -45,6 +45,267 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         }
         
+        /* Custom Export View */
+        #customExportView {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            z-index: 10000;
+            display: none;
+            flex-direction: column;
+        }
+        
+        #customExportView.active {
+            display: flex;
+        }
+        
+        .export-header {
+            height: 60px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+        
+        .export-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        .export-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .export-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+        }
+        
+        .btn-close {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .btn-close:hover {
+            background: #d0d0d0;
+        }
+        
+        .btn-download {
+            background: #007aff;
+            color: white;
+        }
+        
+        .btn-download:hover {
+            background: #0051d5;
+        }
+        
+        .export-content {
+            flex: 1;
+            overflow: auto;
+            padding: 24px;
+        }
+        
+        .export-container {
+            display: flex;
+            gap: 0;
+            min-height: 100%;
+            background: white;
+        }
+        
+        .export-left {
+            width: 400px;
+            flex-shrink: 0;
+            border-right: 2px solid #e0e0e0;
+            padding-right: 24px;
+        }
+        
+        .export-right {
+            flex: 1;
+            padding-left: 24px;
+            position: relative;
+        }
+        
+        .grid-header {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 16px;
+        }
+        
+        .grid-col-task {
+            flex: 1;
+            font-size: 12px;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .grid-col-progress {
+            width: 100px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+        
+        .grid-col-duration {
+            width: 80px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: right;
+        }
+        
+        .resource-group {
+            margin-bottom: 24px;
+        }
+        
+        .resource-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            padding: 8px 0;
+            margin-bottom: 8px;
+        }
+        
+        .epic-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 0 10px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .epic-name {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .progress-circle-container {
+            width: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .progress-circle {
+            width: 36px;
+            height: 36px;
+            position: relative;
+        }
+        
+        .progress-circle svg {
+            transform: rotate(-90deg);
+        }
+        
+        .progress-circle-bg {
+            fill: none;
+            stroke: #e0e0e0;
+            stroke-width: 3;
+        }
+        
+        .progress-circle-fill {
+            fill: none;
+            stroke: #007aff;
+            stroke-width: 3;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+        }
+        
+        .duration-text {
+            width: 80px;
+            text-align: right;
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .timeline-header {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+        
+        .timeline-month {
+            flex: 1;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .timeline-body {
+            position: relative;
+        }
+        
+        .timeline-resource-group {
+            margin-bottom: 24px;
+        }
+        
+        .timeline-resource-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            padding: 8px 0;
+            margin-bottom: 8px;
+        }
+        
+        .timeline-row {
+            position: relative;
+            height: 50px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .epic-pill {
+            position: absolute;
+            height: 32px;
+            top: 9px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
         #exportBar .label {
             font-size: 13px;
             color: rgba(0, 0, 0, 0.6);
@@ -63,8 +324,25 @@
         <button onclick="exportToPDF()">📄 PDF</button>
         <button onclick="exportToPNG()">🖼️ PNG</button>
         <button onclick="exportToExcel()">📊 Excel</button>
+        <button onclick="openCustomExport()">📋 Custom View</button>
     </div>
     <div id="gantt_here"></div>
+    
+    <div id="customExportView">
+        <div class="export-header">
+            <h2>Roadmap Export View</h2>
+            <div class="export-actions">
+                <button class="btn-close" onclick="closeCustomExport()">Close</button>
+                <button class="btn-download" onclick="downloadCustomExport()">Download as PNG</button>
+            </div>
+        </div>
+        <div class="export-content">
+            <div class="export-container" id="exportContainer">
+                <div class="export-left" id="exportLeft"></div>
+                <div class="export-right" id="exportRight"></div>
+            </div>
+        </div>
+    </div>
     
     <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -236,6 +514,182 @@
             a.download = 'dhtmlx-gantt-' + new Date().toISOString().split('T')[0] + '.csv';
             a.click();
             URL.revokeObjectURL(url);
+        }
+        
+        function openCustomExport() {
+            var view = document.getElementById('customExportView');
+            view.classList.add('active');
+            renderCustomExport();
+        }
+        
+        function closeCustomExport() {
+            var view = document.getElementById('customExportView');
+            view.classList.remove('active');
+        }
+        
+        function renderCustomExport() {
+            var leftPanel = document.getElementById('exportLeft');
+            var rightPanel = document.getElementById('exportRight');
+            
+            // Collect data
+            var resources = {};
+            gantt.eachTask(function(task) {
+                if (task.type === 'project') {
+                    resources[task.id] = {
+                        name: task.text,
+                        epics: []
+                    };
+                } else if (task.parent) {
+                    if (resources[task.parent]) {
+                        console.log('Epic:', task.text, 'Progress:', task.progress, 'as %:', Math.round(task.progress * 100));
+                        resources[task.parent].epics.push(task);
+                    }
+                }
+            });
+            
+            // Calculate date range
+            var minDate = null;
+            var maxDate = null;
+            gantt.eachTask(function(task) {
+                if (task.type !== 'project') {
+                    var start = new Date(task.start_date);
+                    var end = new Date(start);
+                    end.setDate(end.getDate() + task.duration);
+                    
+                    if (!minDate || start < minDate) minDate = start;
+                    if (!maxDate || end > maxDate) maxDate = end;
+                }
+            });
+            
+            if (!minDate || !maxDate) {
+                leftPanel.innerHTML = '<p>No data to display</p>';
+                rightPanel.innerHTML = '';
+                return;
+            }
+            
+            // Generate months for timeline
+            var months = [];
+            var current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+            var endMonth = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+            
+            while (current <= endMonth) {
+                months.push({
+                    date: new Date(current),
+                    label: current.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                });
+                current.setMonth(current.getMonth() + 1);
+            }
+            
+            var totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
+            
+            // Render left panel
+            var leftHTML = '<div class="grid-header">';
+            leftHTML += '<div class="grid-col-task">Task</div>';
+            leftHTML += '<div class="grid-col-progress">Progress</div>';
+            leftHTML += '<div class="grid-col-duration">Duration</div>';
+            leftHTML += '</div>';
+            
+            for (var resId in resources) {
+                var resource = resources[resId];
+                leftHTML += '<div class="resource-group">';
+                leftHTML += '<div class="resource-name">' + resource.name + '</div>';
+                
+                resource.epics.forEach(function(epic) {
+                    var progress = Math.round(epic.progress * 100);
+                    var circumference = 2 * Math.PI * 16;
+                    var offset = circumference - (progress / 100) * circumference;
+                    
+                    // Remove JIRA key from epic name (assumes format like "PROJ-123 Summary")
+                    var epicName = epic.text.replace(/^[A-Z]+-\d+\s*/, '');
+                    
+                    leftHTML += '<div class="epic-row">';
+                    leftHTML += '<div class="epic-name">' + epicName + '</div>';
+                    leftHTML += '<div class="progress-circle-container">';
+                    leftHTML += '<div class="progress-circle">';
+                    leftHTML += '<svg width="36" height="36">';
+                    leftHTML += '<circle class="progress-circle-bg" cx="18" cy="18" r="16"></circle>';
+                    leftHTML += '<circle class="progress-circle-fill" cx="18" cy="18" r="16" ';
+                    leftHTML += 'stroke-dasharray="' + circumference + '" ';
+                    leftHTML += 'stroke-dashoffset="' + offset + '"></circle>';
+                    leftHTML += '</svg>';
+                    leftHTML += '</div>';
+                    leftHTML += '<span class="progress-text">' + progress + '%</span>';
+                    leftHTML += '</div>';
+                    leftHTML += '<div class="duration-text">' + epic.duration + ' days</div>';
+                    leftHTML += '</div>';
+                });
+                
+                leftHTML += '</div>';
+            }
+            
+            leftPanel.innerHTML = leftHTML;
+            
+            // Render right panel (timeline)
+            var rightHTML = '<div class="timeline-header">';
+            months.forEach(function(month) {
+                rightHTML += '<div class="timeline-month">' + month.label + '</div>';
+            });
+            rightHTML += '</div>';
+            
+            rightHTML += '<div class="timeline-body">';
+            
+            for (var resId in resources) {
+                var resource = resources[resId];
+                rightHTML += '<div class="timeline-resource-group">';
+                rightHTML += '<div class="timeline-resource-name">' + resource.name + '</div>';
+                
+                resource.epics.forEach(function(epic) {
+                    var start = new Date(epic.start_date);
+                    var end = new Date(start);
+                    end.setDate(end.getDate() + epic.duration);
+                    
+                    var startOffset = Math.ceil((start - minDate) / (1000 * 60 * 60 * 24));
+                    var width = epic.duration;
+                    
+                    var leftPercent = (startOffset / totalDays) * 100;
+                    var widthPercent = (width / totalDays) * 100;
+                    
+                    // Remove JIRA key from epic name
+                    var epicName = epic.text.replace(/^[A-Z]+-\d+\s*/, '');
+                    
+                    rightHTML += '<div class="timeline-row">';
+                    rightHTML += '<div class="epic-pill" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%;">';
+                    rightHTML += epicName;
+                    rightHTML += '</div>';
+                    rightHTML += '</div>';
+                });
+                
+                rightHTML += '</div>';
+            }
+            
+            rightHTML += '</div>';
+            
+            rightPanel.innerHTML = rightHTML;
+        }
+        
+        function downloadCustomExport() {
+            var container = document.getElementById('exportContainer');
+            
+            html2canvas(container, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                width: container.scrollWidth,
+                height: container.scrollHeight
+            }).then(function(canvas) {
+                canvas.toBlob(function(blob) {
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'roadmap-export-' + new Date().toISOString().split('T')[0] + '.png';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+            }).catch(function(error) {
+                console.error('Export failed:', error);
+                alert('Export failed: ' + error.message);
+            });
         }
     </script>
 </body>
