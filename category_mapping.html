@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Category Mapping Tool</title>
+    <title>Project Planning Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
@@ -14,16 +14,150 @@
             padding: 0;
         }
 
-        body {
+        html, body {
             font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-            padding: 40px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1d1d1f;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-subtitle {
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: rgba(0, 0, 0, 0.7);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: rgba(0, 122, 255, 0.08);
+            color: #007aff;
+        }
+
+        .nav-item.active {
+            background: rgba(0, 122, 255, 0.12);
+            color: #007aff;
+            border-left-color: #007aff;
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 20px 32px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dashboard-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1d1d1f;
+            letter-spacing: -0.7px;
+        }
+
+        .dashboard-stats {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #007aff;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: rgba(0, 0, 0, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .view-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 24px 32px;
+            height: calc(100vh - 80px);
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
         }
 
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(20px) saturate(180%);
             -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -31,6 +165,15 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
             overflow: hidden;
             border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Gantt Chart */
+        #chartdiv {
+            width: 100%;
+            height: calc(100vh - 200px);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .section {
@@ -192,7 +335,7 @@
             bottom: 0;
             background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(4px);
-            z-index: 1000;
+            z-index: 10000;
             align-items: center;
             justify-content: center;
         }
@@ -1069,7 +1212,48 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">Project Planner</div>
+            <div class="sidebar-subtitle">Resource Management</div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" onclick="switchView('mapping')">
+                <i class="fas fa-table"></i>
+                <span>Issue Mapping</span>
+            </div>
+            <div class="nav-item" onclick="switchView('gantt')">
+                <i class="fas fa-chart-gantt"></i>
+                <span>Gantt Chart</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="dashboard-header">
+            <div class="dashboard-title" id="viewTitle">Issue Mapping</div>
+            <div class="dashboard-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalIssues">0</div>
+                    <div class="stat-label">Total Issues</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="selectedIssues">0</div>
+                    <div class="stat-label">Selected</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalResources">0</div>
+                    <div class="stat-label">Resources</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="view-container">
+            <!-- Mapping View -->
+            <div class="view active" id="mappingView">
+                <div class="container"></div>
         <div class="section">
             <div class="collapsible-header" onclick="toggleCollapse()">
                 <i class="fas fa-chevron-down collapse-icon" id="collapseIcon"></i>
@@ -1127,6 +1311,14 @@
                             <option value="">All Assignees</option>
                         </select>
                     </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Description</label>
+                        <input type="text" class="filter-input" id="filterDescription" placeholder="Search description..." oninput="applyFilters()">
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">RCA</label>
+                        <input type="text" class="filter-input" id="filterRCA" placeholder="Search RCA..." oninput="applyFilters()">
+                    </div>
                 </div>
                 <div class="filter-actions">
                     <div class="filter-actions-left">
@@ -1162,6 +1354,16 @@
                 </table>
             </div>
         </div>
+                </div>
+            </div>
+            <!-- End Mapping View -->
+
+            <!-- Gantt View -->
+            <div class="view" id="ganttView">
+                <div id="chartdiv"></div>
+            </div>
+            <!-- End Gantt View -->
+        </div>
     </div>
 
     <!-- Dependency Modal -->
@@ -1178,6 +1380,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    
     <script>
         let keywordMappings = [];
         let mappedJiras = [];
@@ -1186,6 +1389,9 @@
         let keywordRowCounter = 0;
         let isLoading = false;
         let currentDependencyIndex = null;
+        let ganttRoot = null;
+        let amChartsLoaded = false;
+        let amChartsLoading = false;
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -1888,6 +2094,9 @@
 
             // Populate filter dropdowns
             populateFilterDropdowns();
+            
+            // Update dashboard stats
+            updateDashboardStats();
         }
 
         function getPriorityClass(priority) {
@@ -1919,6 +2128,7 @@
         function saveJiraData() {
             if (isLoading) return;
             localStorage.setItem('mapped_jiras.json', JSON.stringify(mappedJiras, null, 2));
+            updateDashboardStats();
         }
 
         function archiveData() {
@@ -2006,6 +2216,40 @@
             }
         }
 
+        /**
+         * PREREQUISITE ISSUE MODAL - Dependency Management
+         * 
+         * Purpose:
+         * This modal allows you to define dependencies between JIRA issues, indicating that
+         * one issue must be completed before another can start (prerequisite relationship).
+         * 
+         * How it works:
+         * 1. Click the "+" button (dotted circle) next to any issue in the summary column
+         * 2. A modal opens showing all other issues in your project
+         * 3. Select which issue must be completed BEFORE the current issue can start
+         * 4. Once selected, a purple pill appears showing the prerequisite issue key
+         * 5. An arrow (→) connects the prerequisite to the current issue key
+         * 
+         * Use cases:
+         * - Backend API must be ready before Frontend can start
+         * - Design must be approved before Development begins
+         * - Testing can only start after Development is complete
+         * - Documentation depends on Feature completion
+         * 
+         * Visual representation:
+         * [+] [PREREQUISITE-123 →] [CURRENT-456] [Epic] [High|In Progress] Summary text
+         *     ↑ Click to add      ↑ Shows dependency    ↑ Current issue
+         * 
+         * Benefits:
+         * - Visualize task dependencies
+         * - Plan work sequences
+         * - Identify blockers
+         * - Export to Gantt chart with proper task ordering
+         * 
+         * Limitations:
+         * - Currently supports one prerequisite per issue
+         * - Click the prerequisite pill to remove the dependency
+         */
         function openDependencyModal(index) {
             currentDependencyIndex = index;
             const modal = document.getElementById('dependencyModal');
@@ -2118,7 +2362,7 @@
             
             // Populate Issue Type
             const issueTypeSelect = document.getElementById('filterIssueType');
-            issueTypeSelect.innerHTML = '<option value="">All Types</option>';
+            issueTypeSelect.innerHTML = '<option value="">All Types</option><option value="__BLANK__">(Blank)</option>';
             Array.from(issueTypes).sort().forEach(type => {
                 const option = document.createElement('option');
                 option.value = type;
@@ -2128,7 +2372,7 @@
             
             // Populate Priority
             const prioritySelect = document.getElementById('filterPriority');
-            prioritySelect.innerHTML = '<option value="">All Priorities</option>';
+            prioritySelect.innerHTML = '<option value="">All Priorities</option><option value="__BLANK__">(Blank)</option>';
             Array.from(priorities).sort().forEach(priority => {
                 const option = document.createElement('option');
                 option.value = priority;
@@ -2138,7 +2382,7 @@
             
             // Populate Status
             const statusSelect = document.getElementById('filterStatus');
-            statusSelect.innerHTML = '<option value="">All Statuses</option>';
+            statusSelect.innerHTML = '<option value="">All Statuses</option><option value="__BLANK__">(Blank)</option>';
             Array.from(statuses).sort().forEach(status => {
                 const option = document.createElement('option');
                 option.value = status;
@@ -2148,7 +2392,7 @@
             
             // Populate Category (from existing categories set)
             const categorySelect = document.getElementById('filterCategory');
-            categorySelect.innerHTML = '<option value="">All Categories</option>';
+            categorySelect.innerHTML = '<option value="">All Categories</option><option value="__BLANK__">(Blank)</option>';
             Array.from(categories).sort().forEach(category => {
                 const option = document.createElement('option');
                 option.value = category;
@@ -2158,7 +2402,7 @@
             
             // Populate Assignee (from existing assignees set)
             const assigneeSelect = document.getElementById('filterAssignee');
-            assigneeSelect.innerHTML = '<option value="">All Assignees</option>';
+            assigneeSelect.innerHTML = '<option value="">All Assignees</option><option value="__BLANK__">(Blank)</option>';
             Array.from(assignees).sort().forEach(assignee => {
                 const option = document.createElement('option');
                 option.value = assignee;
@@ -2175,7 +2419,9 @@
                 category: document.getElementById('filterCategory').value,
                 priority: document.getElementById('filterPriority').value,
                 status: document.getElementById('filterStatus').value,
-                assignee: document.getElementById('filterAssignee').value
+                assignee: document.getElementById('filterAssignee').value,
+                description: document.getElementById('filterDescription').value.toLowerCase(),
+                rca: document.getElementById('filterRCA').value.toLowerCase()
             };
             
             const rows = document.querySelectorAll('#dataGridBody tr:not(.detail-row)');
@@ -2189,27 +2435,55 @@
                 
                 let show = true;
                 
-                // Apply filters
+                // Apply text filters
                 if (filters.summary && !jira.summary.toLowerCase().includes(filters.summary)) {
                     show = false;
                 }
                 if (filters.issueKey && !jira.issueKey.toLowerCase().includes(filters.issueKey)) {
                     show = false;
                 }
-                if (filters.issueType && jira.issueType !== filters.issueType) {
+                if (filters.description && !(jira.description || '').toLowerCase().includes(filters.description)) {
                     show = false;
                 }
-                if (filters.category && jira.category !== filters.category) {
+                if (filters.rca && !(jira.rca || '').toLowerCase().includes(filters.rca)) {
                     show = false;
                 }
-                if (filters.priority && jira.priority !== filters.priority) {
-                    show = false;
+                
+                // Apply dropdown filters (with blank support)
+                if (filters.issueType) {
+                    if (filters.issueType === '__BLANK__') {
+                        if (jira.issueType) show = false;
+                    } else if (jira.issueType !== filters.issueType) {
+                        show = false;
+                    }
                 }
-                if (filters.status && jira.status !== filters.status) {
-                    show = false;
+                if (filters.category) {
+                    if (filters.category === '__BLANK__') {
+                        if (jira.category) show = false;
+                    } else if (jira.category !== filters.category) {
+                        show = false;
+                    }
                 }
-                if (filters.assignee && jira.assignee !== filters.assignee) {
-                    show = false;
+                if (filters.priority) {
+                    if (filters.priority === '__BLANK__') {
+                        if (jira.priority) show = false;
+                    } else if (jira.priority !== filters.priority) {
+                        show = false;
+                    }
+                }
+                if (filters.status) {
+                    if (filters.status === '__BLANK__') {
+                        if (jira.status) show = false;
+                    } else if (jira.status !== filters.status) {
+                        show = false;
+                    }
+                }
+                if (filters.assignee) {
+                    if (filters.assignee === '__BLANK__') {
+                        if (jira.assignee) show = false;
+                    } else if (jira.assignee !== filters.assignee) {
+                        show = false;
+                    }
                 }
                 
                 row.style.display = show ? '' : 'none';
@@ -2230,6 +2504,8 @@
             document.getElementById('filterPriority').value = '';
             document.getElementById('filterStatus').value = '';
             document.getElementById('filterAssignee').value = '';
+            document.getElementById('filterDescription').value = '';
+            document.getElementById('filterRCA').value = '';
             applyFilters();
         }
 
@@ -2297,6 +2573,255 @@
             }).join('\n');
             
             return html;
+        }
+
+        // Dashboard functions
+        function switchView(viewName) {
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Find the clicked nav item
+            const clickedItem = Array.from(document.querySelectorAll('.nav-item')).find(item => {
+                return item.textContent.toLowerCase().includes(viewName);
+            });
+            if (clickedItem) {
+                clickedItem.classList.add('active');
+            }
+            
+            // Update views
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.remove('active');
+            });
+            
+            if (viewName === 'mapping') {
+                document.getElementById('mappingView').classList.add('active');
+                document.getElementById('viewTitle').textContent = 'Issue Mapping';
+            } else if (viewName === 'gantt') {
+                document.getElementById('ganttView').classList.add('active');
+                document.getElementById('viewTitle').textContent = 'Gantt Chart';
+                renderGanttChart();
+            }
+        }
+
+        function updateDashboardStats() {
+            const total = mappedJiras.length;
+            const selected = mappedJiras.filter(j => j.selected).length;
+            const resources = new Set(mappedJiras.map(j => j.category).filter(c => c)).size;
+            
+            document.getElementById('totalIssues').textContent = total;
+            document.getElementById('selectedIssues').textContent = selected;
+            document.getElementById('totalResources').textContent = resources;
+        }
+
+        function loadAmCharts(callback) {
+            if (amChartsLoaded) {
+                callback();
+                return;
+            }
+            
+            if (amChartsLoading) {
+                setTimeout(() => loadAmCharts(callback), 100);
+                return;
+            }
+            
+            amChartsLoading = true;
+            
+            // Load all scripts with proper module type
+            const scripts = [
+                { src: 'https://cdn.amcharts.com/lib/5/index.js', type: 'text/javascript' },
+                { src: 'https://cdn.amcharts.com/lib/5/xy.js', type: 'text/javascript' },
+                { src: 'https://cdn.amcharts.com/lib/5/themes/Animated.js', type: 'text/javascript' }
+            ];
+            
+            let loadedCount = 0;
+            
+            scripts.forEach((scriptInfo) => {
+                const script = document.createElement('script');
+                script.src = scriptInfo.src;
+                script.type = scriptInfo.type;
+                script.async = false; // Ensure sequential execution
+                
+                script.onload = () => {
+                    loadedCount++;
+                    if (loadedCount === scripts.length) {
+                        // All base scripts loaded, now try gantt separately
+                        setTimeout(() => {
+                            const ganttScript = document.createElement('script');
+                            ganttScript.src = 'https://cdn.amcharts.com/lib/5/gantt.js';
+                            ganttScript.type = 'text/javascript';
+                            ganttScript.async = false;
+                            
+                            ganttScript.onload = () => {
+                                setTimeout(() => {
+                                    amChartsLoaded = true;
+                                    amChartsLoading = false;
+                                    callback();
+                                }, 500);
+                            };
+                            
+                            ganttScript.onerror = () => {
+                                console.error('Failed to load gantt.js');
+                                amChartsLoading = false;
+                                // Fallback: render without gantt
+                                amChartsLoaded = true;
+                                callback();
+                            };
+                            
+                            document.head.appendChild(ganttScript);
+                        }, 300);
+                    }
+                };
+                
+                script.onerror = () => {
+                    console.error('Failed to load:', scriptInfo.src);
+                    amChartsLoading = false;
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+
+        function renderGanttChart() {
+            // Clear existing chart
+            const chartDiv = document.getElementById('chartdiv');
+            chartDiv.innerHTML = '';
+            
+            // Check if amCharts is loaded
+            if (!amChartsLoaded) {
+                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(0,0,0,0.5);font-size:16px;">Loading chart library...</div>';
+                loadAmCharts(renderGanttChart);
+                return;
+            }
+            
+            // Filter selected issues with dates
+            const selectedIssues = mappedJiras.filter(jira => 
+                jira.selected && jira.startDate && jira.endDate && jira.category
+            );
+            
+            if (selectedIssues.length === 0) {
+                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(0,0,0,0.5);font-size:16px;">No issues with dates and categories selected. Please add start/end dates and categories to issues.</div>';
+                return;
+            }
+            
+            // Dispose existing chart
+            if (ganttRoot) {
+                ganttRoot.dispose();
+                ganttRoot = null;
+            }
+            
+            // Double-check am5 is available
+            if (typeof am5 === 'undefined') {
+                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,59,48,0.8);font-size:16px;">Error: Chart library failed to load. Please refresh the page.</div>';
+                return;
+            }
+            
+            // Create root
+            am5.ready(function() {
+                // Verify am5gantt is available
+                if (typeof am5gantt === 'undefined') {
+                    console.error('am5gantt is undefined, rendering fallback timeline');
+                    renderFallbackTimeline(selectedIssues, chartDiv);
+                    return;
+                }
+                
+                try {
+                    ganttRoot = am5.Root.new("chartdiv");
+                    ganttRoot.setThemes([am5themes_Animated.new(ganttRoot)]);
+                    
+                    // Create Gantt chart
+                    var gantt = ganttRoot.container.children.push(am5gantt.Gantt.new(ganttRoot, {}));
+                
+                // Transform data
+                var categoryData = [];
+                var seriesData = [];
+                var resourceToId = new Map();
+                var resourceIndex = 1;
+                
+                selectedIssues.forEach(function(jira, idx) {
+                    var resourceName = jira.category || "Unassigned";
+                    var resourceId = resourceToId.get(resourceName);
+                    
+                    if (!resourceId) {
+                        resourceId = "res_" + resourceIndex++;
+                        resourceToId.set(resourceName, resourceId);
+                        categoryData.push({
+                            name: resourceName,
+                            id: resourceId
+                        });
+                    }
+                    
+                    var taskId = jira.issueKey || ("task_" + idx);
+                    categoryData.push({
+                        name: jira.summary || jira.issueKey,
+                        id: taskId,
+                        parentId: resourceId
+                    });
+                    
+                    var startMs = new Date(jira.startDate).getTime();
+                    var endMs = new Date(jira.endDate).getTime();
+                    var oneDay = 24 * 60 * 60 * 1000;
+                    var durationDays = Math.max(1, Math.round((endMs - startMs) / oneDay));
+                    
+                    seriesData.push({
+                        category: taskId,
+                        start: startMs,
+                        duration: durationDays,
+                        progress: 0,
+                        id: taskId,
+                        status: jira.status || "Planned"
+                    });
+                });
+                
+                    gantt.yAxis.data.setAll(categoryData);
+                    gantt.series.data.setAll(seriesData);
+                    gantt.appear();
+                } catch (error) {
+                    console.error('Error creating Gantt chart:', error);
+                    renderFallbackTimeline(selectedIssues, chartDiv);
+                }
+            });
+        }
+
+        function renderFallbackTimeline(issues, container) {
+            // Simple HTML/CSS timeline as fallback
+            const resourceGroups = {};
+            
+            issues.forEach(jira => {
+                const resource = jira.category || 'Unassigned';
+                if (!resourceGroups[resource]) {
+                    resourceGroups[resource] = [];
+                }
+                resourceGroups[resource].push(jira);
+            });
+            
+            let html = '<div style="padding:20px;background:white;border-radius:12px;overflow-y:auto;height:100%;">';
+            html += '<h3 style="margin-bottom:20px;color:#1d1d1f;">Project Timeline</h3>';
+            
+            Object.keys(resourceGroups).sort().forEach(resource => {
+                html += `<div style="margin-bottom:24px;">`;
+                html += `<h4 style="color:#007aff;margin-bottom:12px;font-size:16px;">${escapeHtml(resource)}</h4>`;
+                
+                resourceGroups[resource].forEach(jira => {
+                    const startDate = new Date(jira.startDate).toLocaleDateString();
+                    const endDate = new Date(jira.endDate).toLocaleDateString();
+                    const duration = Math.ceil((new Date(jira.endDate) - new Date(jira.startDate)) / (1000 * 60 * 60 * 24));
+                    
+                    html += `<div style="background:rgba(0,122,255,0.08);padding:12px;border-radius:8px;margin-bottom:8px;border-left:4px solid #007aff;">`;
+                    html += `<div style="font-weight:600;margin-bottom:4px;">${escapeHtml(jira.issueKey)} - ${escapeHtml(jira.summary)}</div>`;
+                    html += `<div style="font-size:12px;color:rgba(0,0,0,0.6);">`;
+                    html += `<span>${startDate}</span> → <span>${endDate}</span> `;
+                    html += `<span style="margin-left:12px;">(${duration} days)</span>`;
+                    if (jira.status) html += ` <span style="margin-left:12px;">Status: ${escapeHtml(jira.status)}</span>`;
+                    html += `</div></div>`;
+                });
+                
+                html += `</div>`;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
         }
     </script>
 </body>
