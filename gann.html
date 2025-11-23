@@ -9,7 +9,54 @@
   
   #chartdiv {
     width: 100%;
-    height: 100%;
+    height: calc(100% - 50px);
+  }
+  
+  #exportBar {
+    height: 50px;
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 12px;
+  }
+  
+  #exportBar button {
+    padding: 8px 16px;
+    background: #007aff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  #exportBar button:hover {
+    background: #0051d5;
+    transform: translateY(-0.5px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+  
+  #exportBar button:active {
+    transform: translateY(0);
+  }
+  
+  #exportBar .label {
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.6);
+    font-weight: 500;
+  }
+  
+  /* Hide amCharts export menu icon */
+  .am5exporting-menu-container {
+    display: none !important;
   }
 </style>
 
@@ -20,6 +67,7 @@
 <script src="https://cdn.amcharts.com/lib/5/plugins/exporting.js"></script>
 <script src="https://cdn.amcharts.com/lib/5/gantt.js"></script>
 <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <!-- Chart code -->
 <script>
@@ -44,21 +92,34 @@ function renderGanttChart(roadmapData) {
     am5gantt.Gantt.new(root, {})
   );
   
-  // Add exporting menu
+  // Add exporting menu (hidden by default, accessible via right-click or our buttons)
   exporting = am5plugins_exporting.Exporting.new(root, {
-    menu: am5plugins_exporting.ExportingMenu.new(root, {}),
+    menu: am5plugins_exporting.ExportingMenu.new(root, {
+      align: "right",
+      valign: "top"
+    }),
+    filePrefix: "gantt-chart",
     pdfOptions: {
-      pageSize: "A4",
-      pageOrientation: "landscape",
-      addURL: false
+      addURL: false,
+      imageFormat: "png",
+      quality: 0.9,
+      includeHidden: false
     },
     pngOptions: {
-      quality: 0.9
+      quality: 0.9,
+      maintainPixelRatio: true,
+      includeHidden: false
     },
     jpgOptions: {
-      quality: 0.9
+      quality: 0.9,
+      includeHidden: false
     }
   });
+  
+  // Hide the export menu by default
+  if (exporting.get("menu")) {
+    exporting.get("menu").close();
+  }
 
   // ===== 2) Transform JSON -> categoryData + seriesData ========
 
@@ -155,15 +216,52 @@ var defaultRoadmapData = [
   }
 ];
 
+// Export chart in various formats
+function exportChart(format) {
+  if (!exporting) {
+    alert('Chart not ready. Please wait for the chart to load and try again.');
+    return;
+  }
+  
+  try {
+    // Hide export bar and menu during export
+    var exportBar = document.getElementById('exportBar');
+    exportBar.style.display = 'none';
+    
+    // Hide the amCharts export menu
+    if (exporting.get("menu")) {
+      exporting.get("menu").close();
+    }
+    
+    // Wait a moment for UI to update, then export
+    setTimeout(function() {
+      exporting.download(format).then(function() {
+        // Show export bar again after export
+        exportBar.style.display = 'flex';
+      }).catch(function(error) {
+        exportBar.style.display = 'flex';
+        console.error('Export error:', error);
+        alert('Export error: ' + error.message);
+      });
+    }, 100);
+  } catch (error) {
+    document.getElementById('exportBar').style.display = 'flex';
+    console.error('Export error:', error);
+    alert('Export error: ' + error.message);
+  }
+}
+
+// Custom export function to handle full chart dimensions
+function exportFullChartToPdf() {
+  exportChart('pdf');
+}
+
 // Listen for messages from parent window
 window.addEventListener('message', function(event) {
-  if (event.data.type === 'updateGantt' && event.data.data) {
+  if (event.data && event.data.type === 'updateGantt' && event.data.data) {
     renderGanttChart(event.data.data);
-  } else if (event.data.type === 'exportPdf') {
-    // Trigger PDF export
-    if (exporting) {
-      exporting.download("pdf");
-    }
+  } else if (event.data && event.data.type === 'exportPdf') {
+    exportFullChartToPdf();
   }
 });
 
@@ -174,4 +272,10 @@ am5.ready(function () {
 </script>
 
 <!-- HTML -->
+<div id="exportBar">
+  <span class="label">Export:</span>
+  <button onclick="exportFullChartToPdf()">📄 PDF</button>
+  <button onclick="exportChart('png')">🖼️ PNG</button>
+  <button onclick="exportChart('jpg')">📸 JPG</button>
+</div>
 <div id="chartdiv"></div>

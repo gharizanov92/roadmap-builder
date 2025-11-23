@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DHTMLX Gantt</title>
+    <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        #exportBar {
+            height: 50px;
+            background: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 12px;
+        }
+        
+        #exportBar button {
+            padding: 8px 16px;
+            background: #007aff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        #exportBar button:hover {
+            background: #0051d5;
+            transform: translateY(-0.5px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+        
+        #exportBar .label {
+            font-size: 13px;
+            color: rgba(0, 0, 0, 0.6);
+            font-weight: 500;
+        }
+        
+        #gantt_here {
+            width: 100%;
+            height: calc(100% - 50px);
+        }
+    </style>
+</head>
+<body>
+    <div id="exportBar">
+        <span class="label">Export:</span>
+        <button onclick="exportToPDF()">📄 PDF</button>
+        <button onclick="exportToPNG()">🖼️ PNG</button>
+        <button onclick="exportToExcel()">📊 Excel</button>
+    </div>
+    <div id="gantt_here"></div>
+    
+    <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // Configure Gantt
+        gantt.config.date_format = "%Y-%m-%d";
+        gantt.config.scale_unit = "day";
+        gantt.config.step = 1;
+        gantt.config.date_scale = "%d %M";
+        gantt.config.subscales = [
+            {unit: "month", step: 1, date: "%F %Y"}
+        ];
+        gantt.config.columns = [
+            {name: "text", label: "Task", tree: true, width: 250},
+            {name: "start_date", label: "Start", align: "center", width: 80},
+            {name: "duration", label: "Duration", align: "center", width: 70},
+            {name: "progress", label: "Progress", align: "center", width: 70, template: function(task) {
+                return Math.round(task.progress * 100) + "%";
+            }}
+        ];
+        
+        gantt.config.readonly = true;
+        gantt.config.show_progress = true;
+        
+        // Initialize
+        gantt.init("gantt_here");
+        
+        // Default data
+        var defaultData = {
+            data: [
+                {id: 1, text: "Design Team", start_date: "2025-01-01", duration: 0, progress: 0, open: true},
+                {id: 2, text: "Discovery & Research", start_date: "2025-01-01", duration: 10, progress: 0.6, parent: 1},
+                {id: 3, text: "Backend Team", start_date: "2025-01-15", duration: 0, progress: 0, open: true},
+                {id: 4, text: "API Design", start_date: "2025-01-15", duration: 21, progress: 0.1, parent: 3}
+            ],
+            links: []
+        };
+        
+        gantt.parse(defaultData);
+        
+        // Listen for data updates
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'updateGantt' && event.data.data) {
+                updateGanttData(event.data.data);
+            }
+        });
+        
+        function updateGanttData(roadmapData) {
+            gantt.clearAll();
+            
+            var tasks = [];
+            var taskId = 1;
+            var resourceMap = {};
+            
+            // Group by resource
+            roadmapData.forEach(function(item) {
+                var resource = item.resource || 'Unassigned';
+                if (!resourceMap[resource]) {
+                    resourceMap[resource] = taskId++;
+                    tasks.push({
+                        id: resourceMap[resource],
+                        text: resource,
+                        start_date: item.start,
+                        duration: 0,
+                        progress: 0,
+                        open: true,
+                        type: 'project'
+                    });
+                }
+                
+                var duration = Math.ceil((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24));
+                tasks.push({
+                    id: taskId++,
+                    text: item.name,
+                    start_date: item.start,
+                    duration: duration,
+                    progress: item.progress / 100,
+                    parent: resourceMap[resource]
+                });
+            });
+            
+            gantt.parse({data: tasks, links: []});
+        }
+        
+        function exportToPDF() {
+            var container = document.getElementById('gantt_here');
+            var exportBar = document.getElementById('exportBar');
+            
+            // Hide export bar temporarily
+            exportBar.style.display = 'none';
+            
+            html2canvas(container, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                width: container.scrollWidth,
+                height: container.scrollHeight
+            }).then(function(canvas) {
+                exportBar.style.display = 'flex';
+                
+                var imgData = canvas.toDataURL('image/png');
+                var mmPerPx = 25.4 / 96;
+                var imgWidthMm = canvas.width * mmPerPx / 2;
+                var imgHeightMm = canvas.height * mmPerPx / 2;
+                
+                var pdf = new jspdf.jsPDF({
+                    orientation: imgWidthMm > imgHeightMm ? 'landscape' : 'portrait',
+                    unit: 'mm',
+                    format: [imgWidthMm, imgHeightMm],
+                    compress: true
+                });
+                
+                pdf.addImage(imgData, 'PNG', 0, 0, imgWidthMm, imgHeightMm, '', 'FAST');
+                pdf.save('dhtmlx-gantt-' + new Date().toISOString().split('T')[0] + '.pdf');
+            }).catch(function(error) {
+                exportBar.style.display = 'flex';
+                console.error('Export failed:', error);
+                alert('Export failed: ' + error.message);
+            });
+        }
+        
+        function exportToPNG() {
+            var container = document.getElementById('gantt_here');
+            var exportBar = document.getElementById('exportBar');
+            
+            exportBar.style.display = 'none';
+            
+            html2canvas(container, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                width: container.scrollWidth,
+                height: container.scrollHeight
+            }).then(function(canvas) {
+                exportBar.style.display = 'flex';
+                
+                canvas.toBlob(function(blob) {
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'dhtmlx-gantt-' + new Date().toISOString().split('T')[0] + '.png';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+            }).catch(function(error) {
+                exportBar.style.display = 'flex';
+                console.error('Export failed:', error);
+                alert('Export failed: ' + error.message);
+            });
+        }
+        
+        function exportToExcel() {
+            // Export to CSV format (Excel-compatible)
+            var csv = 'Task,Start Date,Duration,Progress\n';
+            
+            gantt.eachTask(function(task) {
+                if (task.type !== 'project') {
+                    csv += '"' + task.text + '","' + task.start_date + '",' + task.duration + ',' + Math.round(task.progress * 100) + '%\n';
+                }
+            });
+            
+            var blob = new Blob([csv], { type: 'text/csv' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'dhtmlx-gantt-' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
