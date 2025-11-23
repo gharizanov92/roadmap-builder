@@ -297,10 +297,48 @@
             color: #666;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            border-right: 1px solid #e0e0e0;
+        }
+        
+        .timeline-month:last-child {
+            border-right: none;
         }
         
         .timeline-body {
             position: relative;
+        }
+        
+        .sprint-background {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: rgba(102, 126, 234, 0.03);
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .sprint-separator {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, 
+                rgba(102, 126, 234, 0.3) 0%, 
+                rgba(102, 126, 234, 0.15) 50%, 
+                rgba(102, 126, 234, 0.3) 100%);
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .sprint-separator::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -1px;
+            width: 4px;
+            height: 100%;
+            background: rgba(102, 126, 234, 0.05);
+            filter: blur(2px);
         }
         
         .timeline-resource-group {
@@ -336,6 +374,7 @@
             font-weight: 600;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             overflow: hidden;
+            z-index: 10;
         }
         
         .epic-pill-progress-bg {
@@ -395,6 +434,7 @@
         <div class="export-header">
             <h2>Roadmap Export View</h2>
             <div class="export-actions">
+                <button class="btn-close" onclick="reconfigureSprints()">⚙️ Configure Sprints</button>
                 <button class="btn-close" onclick="closeCustomExport()">Close</button>
                 <button class="btn-download" onclick="downloadCustomExport()">Download as PNG</button>
             </div>
@@ -580,9 +620,31 @@
         }
         
         function openCustomExport() {
+            // Get sprint configuration from localStorage or prompt user
+            var sprintConfig = JSON.parse(localStorage.getItem('sprint_config') || 'null');
+            
+            if (!sprintConfig) {
+                var currentSprint = prompt('Enter the current sprint number:', '4');
+                if (!currentSprint) return;
+                
+                var startDate = prompt('Enter the start date of Sprint ' + currentSprint + ' (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+                if (!startDate) return;
+                
+                var duration = prompt('Enter sprint duration in days:', '14');
+                if (!duration) return;
+                
+                sprintConfig = {
+                    currentSprint: parseInt(currentSprint),
+                    startDate: startDate,
+                    duration: parseInt(duration)
+                };
+                
+                localStorage.setItem('sprint_config', JSON.stringify(sprintConfig));
+            }
+            
             var view = document.getElementById('customExportView');
             view.classList.add('active');
-            renderCustomExport();
+            renderCustomExport(sprintConfig);
         }
         
         function closeCustomExport() {
@@ -622,9 +684,14 @@
             '#9aa8c4', '#b8b8c4', '#a8c4a8', '#c4b49a', '#a8b8d4'
         ];
         
-        function renderCustomExport() {
+        function renderCustomExport(sprintConfig) {
             var leftPanel = document.getElementById('exportLeft');
             var rightPanel = document.getElementById('exportRight');
+            
+            // Get sprint config from localStorage if not provided
+            if (!sprintConfig) {
+                sprintConfig = JSON.parse(localStorage.getItem('sprint_config') || 'null');
+            }
             
             // Collect data
             var resources = {};
@@ -665,17 +732,44 @@
                 return;
             }
             
-            // Generate months for timeline
-            var months = [];
-            var current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-            var endMonth = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
-            
-            while (current <= endMonth) {
-                months.push({
-                    date: new Date(current),
-                    label: current.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                });
-                current.setMonth(current.getMonth() + 1);
+            // Generate sprints for timeline
+            var sprints = [];
+            if (sprintConfig) {
+                var sprintStartDate = new Date(sprintConfig.startDate);
+                var sprintDuration = sprintConfig.duration;
+                var currentSprintNum = sprintConfig.currentSprint;
+                
+                // Calculate which sprint minDate falls into
+                var daysDiff = Math.floor((minDate - sprintStartDate) / (1000 * 60 * 60 * 24));
+                var sprintOffset = Math.floor(daysDiff / sprintDuration);
+                var firstSprintNum = currentSprintNum + sprintOffset;
+                
+                // Generate sprints covering the date range
+                var sprintDate = new Date(sprintStartDate);
+                sprintDate.setDate(sprintDate.getDate() + (sprintOffset * sprintDuration));
+                var sprintNum = firstSprintNum;
+                
+                while (sprintDate < maxDate) {
+                    sprints.push({
+                        number: sprintNum,
+                        startDate: new Date(sprintDate),
+                        label: 'Sprint ' + sprintNum
+                    });
+                    sprintDate.setDate(sprintDate.getDate() + sprintDuration);
+                    sprintNum++;
+                }
+            } else {
+                // Fallback to months if no sprint config
+                var current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+                var endMonth = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+                
+                while (current <= endMonth) {
+                    sprints.push({
+                        startDate: new Date(current),
+                        label: current.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                    });
+                    current.setMonth(current.getMonth() + 1);
+                }
             }
             
             var totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
@@ -734,12 +828,35 @@
             
             // Render right panel (timeline)
             var rightHTML = '<div class="timeline-header">';
-            months.forEach(function(month) {
-                rightHTML += '<div class="timeline-month">' + month.label + '</div>';
+            sprints.forEach(function(sprint) {
+                rightHTML += '<div class="timeline-month">' + sprint.label + '</div>';
             });
             rightHTML += '</div>';
             
             rightHTML += '<div class="timeline-body">';
+            
+            // Add sprint background columns and separator lines
+            if (sprintConfig && sprints.length > 0) {
+                sprints.forEach(function(sprint, index) {
+                    var sprintStartOffset = Math.ceil((sprint.startDate - minDate) / (1000 * 60 * 60 * 24));
+                    var sprintEndDate = new Date(sprint.startDate);
+                    sprintEndDate.setDate(sprintEndDate.getDate() + sprintConfig.duration);
+                    var sprintEndOffset = Math.ceil((sprintEndDate - minDate) / (1000 * 60 * 60 * 24));
+                    
+                    var leftPercent = (sprintStartOffset / totalDays) * 100;
+                    var widthPercent = ((sprintEndOffset - sprintStartOffset) / totalDays) * 100;
+                    
+                    // Alternating background
+                    if (index % 2 === 1) {
+                        rightHTML += '<div class="sprint-background" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%;"></div>';
+                    }
+                    
+                    // Separator line (except for first sprint)
+                    if (index > 0) {
+                        rightHTML += '<div class="sprint-separator" style="left: ' + leftPercent + '%;"></div>';
+                    }
+                });
+            }
             
             for (var resId in resources) {
                 var resource = resources[resId];
@@ -811,6 +928,12 @@
                 console.error('Export failed:', error);
                 alert('Export failed: ' + error.message);
             });
+        }
+        
+        function reconfigureSprints() {
+            localStorage.removeItem('sprint_config');
+            closeCustomExport();
+            openCustomExport();
         }
         
         function makeEditable(element) {
