@@ -570,6 +570,98 @@
             min-width: auto;
         }
 
+        /* Progress slider */
+        .progress-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .progress-slider {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(0, 0, 0, 0.08);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .progress-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #007aff;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            margin-top: -5px;
+        }
+
+        .progress-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #007aff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-slider::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        .progress-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: #007aff;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Styled checkbox */
+        input[type="checkbox"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        input[type="checkbox"]:hover {
+            border-color: #007aff;
+        }
+
+        input[type="checkbox"]:checked {
+            background: #007aff;
+            border-color: #007aff;
+        }
+
+        input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .checkbox-cell input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+        }
+
         /* Markdown rendering styles */
         .markdown-content h1 {
             font-size: 18px;
@@ -862,7 +954,7 @@
 
         button {
             padding: 9px 16px;
-            background: linear-gradient(180deg, #007aff 0%, #0051d5 100%);
+            background: #007aff;
             color: white;
             border: none;
             border-radius: 10px;
@@ -878,7 +970,7 @@
         }
 
         button:hover {
-            background: linear-gradient(180deg, #0077ed 0%, #004ec7 100%);
+            background: #0051d5;
             transform: translateY(-0.5px);
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
@@ -889,22 +981,22 @@
         }
 
         button.danger {
-            background: linear-gradient(180deg, #ff3b30 0%, #d32f2f 100%);
+            background: #ff3b30;
             box-shadow: 0 1px 3px rgba(255, 59, 48, 0.3), 0 1px 2px rgba(0, 0, 0, 0.08);
         }
 
         button.danger:hover {
-            background: linear-gradient(180deg, #ff2d20 0%, #c62828 100%);
+            background: #d32f2f;
             box-shadow: 0 2px 6px rgba(255, 59, 48, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         button.success {
-            background: linear-gradient(180deg, #34c759 0%, #28a745 100%);
+            background: #34c759;
             box-shadow: 0 1px 3px rgba(52, 199, 89, 0.3), 0 1px 2px rgba(0, 0, 0, 0.08);
         }
 
         button.success:hover {
-            background: linear-gradient(180deg, #30d158 0%, #248a3d 100%);
+            background: #28a745;
             box-shadow: 0 2px 6px rgba(52, 199, 89, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
@@ -933,7 +1025,7 @@
 
         .file-input-label {
             padding: 9px 16px;
-            background: linear-gradient(180deg, #007aff 0%, #0051d5 100%);
+            background: #007aff;
             color: white;
             border-radius: 10px;
             cursor: pointer;
@@ -948,7 +1040,7 @@
         }
 
         .file-input-label:hover {
-            background: linear-gradient(180deg, #0077ed 0%, #004ec7 100%);
+            background: #0051d5;
             transform: translateY(-0.5px);
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
@@ -990,17 +1082,22 @@
 
         .summary-content {
             display: flex;
-            align-items: center;
-            gap: 5px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 6px;
             line-height: 1.4;
         }
 
+        .summary-pills {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
         .summary-text {
-            flex: 1;
-            min-width: 200px;
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.5;
+            color: #1d1d1f;
         }
 
         .priority-highest {
@@ -1186,7 +1283,7 @@
         }
 
         .delete-btn {
-            background: linear-gradient(180deg, #ff3b30 0%, #d32f2f 100%);
+            background: #ff3b30;
             color: white;
             border: none;
             padding: 5px 10px;
@@ -1200,7 +1297,7 @@
         }
 
         .delete-btn:hover {
-            background: linear-gradient(180deg, #ff2d20 0%, #c62828 100%);
+            background: #d32f2f;
             transform: translateY(-0.5px);
             box-shadow: 0 2px 6px rgba(255, 59, 48, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
         }
@@ -1345,6 +1442,7 @@
                             <th class="pinned">Summary</th>
                             <th class="pinned">Category</th>
                             <th>Assignee</th>
+                            <th>Progress</th>
                             <th>Start Date</th>
                             <th>End Date</th>
                         </tr>
@@ -1918,6 +2016,7 @@
                     category: '',
                     manualCategory: false,
                     startDate: '',
+                    progress: 0,
                     selected: true,
                     endDate: endDate,
                     dependency: null
@@ -2025,19 +2124,27 @@
                     <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-index="${index}" ${jira.selected ? 'checked' : ''} onchange="toggleRowSelection(${index})"></td>
                     <td class="pinned">
                         <div class="summary-content">
-                            ${expandBtn}
-                            ${addDepBtn}
-                            ${dependencyPill}
-                            ${issueKeyPill}
-                            ${issueTypePill}
-                            ${priorityPill}
-                            ${statusPill}
-                            ${storyPointsBadge}
-                            <span class="summary-text">${escapeHtml(jira.summary)}</span>
+                            <div class="summary-pills">
+                                ${expandBtn}
+                                ${addDepBtn}
+                                ${dependencyPill}
+                                ${issueKeyPill}
+                                ${issueTypePill}
+                                ${priorityPill}
+                                ${statusPill}
+                                ${storyPointsBadge}
+                            </div>
+                            <div class="summary-text">${escapeHtml(jira.summary)}</div>
                         </div>
                     </td>
                     <td class="pinned"><select class="category-select" data-index="${index}"></select></td>
                     <td><select class="assignee-select" data-index="${index}"></select></td>
+                    <td>
+                        <div class="progress-container">
+                            <input type="range" class="progress-slider" min="0" max="100" value="${jira.progress || 0}" data-index="${index}" oninput="updateProgress(${index}, this.value)">
+                            <span class="progress-value" id="progress-${index}">${jira.progress || 0}%</span>
+                        </div>
+                    </td>
                     <td><input type="text" class="date-input" data-index="${index}" data-field="startDate" value="${jira.startDate || ''}" placeholder="Start Date"></td>
                     <td><input type="text" class="date-input" data-index="${index}" data-field="endDate" value="${jira.endDate || ''}" placeholder="End Date"></td>
                 `;
@@ -2296,6 +2403,14 @@
         function updateDate(index, field, value) {
             if (mappedJiras[index]) {
                 mappedJiras[index][field] = value;
+                saveJiraData();
+            }
+        }
+
+        function updateProgress(index, value) {
+            if (mappedJiras[index]) {
+                mappedJiras[index].progress = parseInt(value);
+                document.getElementById(`progress-${index}`).textContent = value + '%';
                 saveJiraData();
             }
         }
@@ -2781,8 +2896,10 @@
                     else if (status.includes('progress')) statusColor = '#007aff';
                     else if (status.includes('blocked')) statusColor = '#ff3b30';
                     
+                    const progress = jira.progress || 0;
+                    
                     html += `<div style="background:white;padding:14px;border-radius:10px;margin-bottom:10px;border-left:4px solid ${statusColor};box-shadow:0 1px 3px rgba(0,0,0,0.05);">`;
-                    html += `<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">`;
+                    html += `<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">`;
                     html += `<div style="flex:1;">`;
                     html += `<div style="font-weight:600;font-size:14px;color:#1d1d1f;margin-bottom:4px;">`;
                     html += `<span style="color:#007aff;">${escapeHtml(jira.issueKey)}</span> ${escapeHtml(jira.summary)}`;
@@ -2793,7 +2910,19 @@
                     if (jira.status) html += `<span><i class="fas fa-circle" style="margin-right:4px;color:${statusColor};"></i>${escapeHtml(jira.status)}</span>`;
                     if (jira.assignee) html += `<span><i class="fas fa-user" style="margin-right:4px;"></i>${escapeHtml(jira.assignee)}</span>`;
                     if (jira.storyPoints) html += `<span><i class="fas fa-chart-simple" style="margin-right:4px;"></i>${escapeHtml(jira.storyPoints)} SP</span>`;
-                    html += `</div></div></div></div>`;
+                    html += `</div></div></div>`;
+                    
+                    // Progress bar
+                    html += `<div style="margin-top:8px;">`;
+                    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">`;
+                    html += `<span style="font-size:11px;color:rgba(0,0,0,0.5);font-weight:600;">PROGRESS</span>`;
+                    html += `<span style="font-size:12px;color:#007aff;font-weight:600;">${progress}%</span>`;
+                    html += `</div>`;
+                    html += `<div style="background:rgba(0,0,0,0.08);height:6px;border-radius:3px;overflow:hidden;">`;
+                    html += `<div style="background:linear-gradient(90deg, #007aff 0%, #0051d5 100%);height:100%;width:${progress}%;transition:width 0.3s ease;"></div>`;
+                    html += `</div></div>`;
+                    
+                    html += `</div>`;
                 });
                 
                 html += `</div>`;
