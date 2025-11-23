@@ -265,6 +265,190 @@
             border-bottom: none;
         }
 
+        .checkbox-cell {
+            width: 30px;
+            min-width: 30px;
+            max-width: 30px;
+            text-align: center;
+            padding: 6px 4px !important;
+        }
+
+        .checkbox-cell input[type="checkbox"] {
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+            margin: 0;
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 4px 8px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            margin-top: 4px;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .detail-row {
+            display: none;
+            background: rgba(248, 249, 250, 0.5);
+        }
+
+        .detail-row.active {
+            display: table-row;
+        }
+
+        .detail-content {
+            padding: 12px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .detail-section {
+            margin-bottom: 12px;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.6);
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            color: #1d1d1f;
+        }
+
+        .expand-btn {
+            background: transparent;
+            border: none;
+            color: rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+            margin-right: 6px;
+            font-size: 12px;
+        }
+
+        .expand-btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: rgba(0, 0, 0, 0.8);
+            transform: none;
+        }
+
+        .expand-btn.expanded {
+            color: #007aff;
+        }
+
+        .story-points-badge {
+            background: rgba(255, 149, 0, 0.15);
+            color: #ff9500;
+            padding: 2px 7px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            display: inline-block;
+            min-width: auto;
+        }
+
+        /* Markdown rendering styles */
+        .markdown-content h1 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 12px 0 8px 0;
+            color: #1d1d1f;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+            padding-bottom: 4px;
+        }
+
+        .markdown-content h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 10px 0 6px 0;
+            color: #1d1d1f;
+        }
+
+        .markdown-content h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 8px 0 4px 0;
+            color: #1d1d1f;
+        }
+
+        .markdown-content hr {
+            border: none;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            margin: 12px 0;
+        }
+
+        .markdown-content p {
+            margin: 6px 0;
+            line-height: 1.6;
+        }
+
+        .markdown-content ul, .markdown-content ol {
+            margin: 6px 0;
+            padding-left: 24px;
+        }
+
+        .markdown-content li {
+            margin: 3px 0;
+        }
+
+        .markdown-content code {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        .markdown-content pre {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 8px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .markdown-content blockquote {
+            border-left: 3px solid rgba(0, 122, 255, 0.3);
+            padding-left: 12px;
+            margin: 8px 0;
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        .markdown-content strong {
+            font-weight: 600;
+        }
+
+        .markdown-content em {
+            font-style: italic;
+        }
+
+        .rca-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 2px solid rgba(0, 0, 0, 0.08);
+        }
+
         .keyword-row {
             display: flex;
             align-items: center;
@@ -758,18 +942,35 @@
         .data-grid th:nth-child(1),
         .data-grid td:nth-child(1) {
             left: 0;
-            min-width: 500px;
+            min-width: 30px;
+            max-width: 30px;
+            position: sticky;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 5;
+        }
+
+        .data-grid th:nth-child(1) {
+            background: rgba(248, 249, 250, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 15;
         }
 
         .data-grid th:nth-child(2),
         .data-grid td:nth-child(2) {
-            left: 500px;
-            min-width: 200px;
+            left: 30px;
+            min-width: 500px;
         }
 
         .data-grid th:nth-child(3),
         .data-grid td:nth-child(3) {
-            left: 700px;
+            left: 530px;
+            min-width: 200px;
+        }
+
+        .data-grid th:nth-child(4),
+        .data-grid td:nth-child(4) {
+            left: 730px;
             min-width: 180px;
         }
 
@@ -830,6 +1031,7 @@
                             <i class="fas fa-upload"></i> Import CSV
                         </label>
                     </div>
+                    <button onclick="saveSelectedAsJSON()"><i class="fas fa-save"></i> Save as JSON</button>
                     <button class="success" onclick="archiveData()"><i class="fas fa-archive"></i> Archive</button>
                     <button class="danger" onclick="clearData()"><i class="fas fa-trash"></i> Clear</button>
                 </div>
@@ -838,11 +1040,20 @@
                 <table class="data-grid" id="dataGrid">
                     <thead>
                         <tr>
+                            <th class="checkbox-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" checked></th>
                             <th class="pinned">Summary</th>
                             <th class="pinned">Category</th>
                             <th>Assignee</th>
                             <th>Start Date</th>
                             <th>End Date</th>
+                        </tr>
+                        <tr id="filterRow">
+                            <th class="checkbox-cell"></th>
+                            <th class="pinned"><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
+                            <th class="pinned"><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
+                            <th><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
+                            <th><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
+                            <th><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
                         </tr>
                     </thead>
                     <tbody id="dataGridBody">
@@ -1372,7 +1583,10 @@
                 status: headers.findIndex(h => h === 'status'),
                 assignee: headers.findIndex(h => h === 'assignee'),
                 priority: headers.findIndex(h => h === 'priority'),
-                dueDate: headers.findIndex(h => h === 'due date')
+                dueDate: headers.findIndex(h => h === 'due date'),
+                storyPoints: headers.findIndex(h => h === 'custom field (story points)'),
+                description: headers.findIndex(h => h === 'description'),
+                rca: headers.findIndex(h => h === 'custom field (rca - for story)')
             };
 
             mappedJiras = [];
@@ -1391,9 +1605,13 @@
                     status: (values[columnMap.status] || '').trim(),
                     assignee: (values[columnMap.assignee] || '').trim(),
                     priority: (values[columnMap.priority] || '').trim(),
+                    storyPoints: (values[columnMap.storyPoints] || '').trim(),
+                    description: (values[columnMap.description] || '').trim(),
+                    rca: (values[columnMap.rca] || '').trim(),
                     category: '',
                     manualCategory: false,
                     startDate: '',
+                    selected: true,
                     endDate: endDate,
                     dependency: null
                 };
@@ -1479,7 +1697,10 @@
                 }
                 
                 // Build summary with embedded pills
+                const expandBtn = `<button class="expand-btn" onclick="toggleDetail(${index})" id="expand-${index}"><i class="fas fa-chevron-right"></i></button>`;
                 const addDepBtn = `<button class="add-dependency-btn" onclick="openDependencyModal(${index})" title="Add prerequisite">+</button>`;
+                
+                // Separate pills
                 const issueKeyPill = jira.issueKey ? 
                     `<a href="https://example.com" target="_blank" class="issue-key-pill">${escapeHtml(jira.issueKey)}</a>` : '';
                 const issueTypePill = jira.issueType ? 
@@ -1489,15 +1710,22 @@
                 const statusPill = jira.status ? 
                     `<span class="status-pill ${statusClass}">${escapeHtml(jira.status)}</span>` : '';
                 
+                // Story Points badge
+                const storyPointsBadge = jira.storyPoints ? 
+                    `<span class="story-points-badge" title="Story Points">${escapeHtml(jira.storyPoints)} SP</span>` : '';
+                
                 row.innerHTML = `
+                    <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-index="${index}" ${jira.selected ? 'checked' : ''} onchange="toggleRowSelection(${index})"></td>
                     <td class="pinned">
                         <div class="summary-content">
+                            ${expandBtn}
                             ${addDepBtn}
                             ${dependencyPill}
                             ${issueKeyPill}
                             ${issueTypePill}
                             ${priorityPill}
                             ${statusPill}
+                            ${storyPointsBadge}
                             <span class="summary-text">${escapeHtml(jira.summary)}</span>
                         </div>
                     </td>
@@ -1507,6 +1735,30 @@
                     <td><input type="text" class="date-input" data-index="${index}" data-field="endDate" value="${jira.endDate || ''}" placeholder="End Date"></td>
                 `;
                 fragment.appendChild(row);
+                
+                // Add detail row
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'detail-row';
+                detailRow.id = `detail-${index}`;
+                detailRow.innerHTML = `
+                    <td colspan="6">
+                        <div class="detail-content">
+                            <div class="detail-section">
+                                <div class="detail-label">Description:</div>
+                                <div class="detail-value markdown-content">${renderMarkdown(jira.description || 'No description available')}</div>
+                            </div>
+                            ${jira.storyPoints ? `<div class="detail-section">
+                                <div class="detail-label">Story Points:</div>
+                                <div class="detail-value">${escapeHtml(jira.storyPoints)}</div>
+                            </div>` : ''}
+                            ${jira.rca ? `<div class="detail-section rca-section">
+                                <div class="detail-label">RCA - For Story:</div>
+                                <div class="detail-value markdown-content">${renderMarkdown(jira.rca)}</div>
+                            </div>` : ''}
+                        </div>
+                    </td>
+                `;
+                fragment.appendChild(detailRow);
             });
 
             tbody.appendChild(fragment);
@@ -1566,24 +1818,26 @@
         }
 
         function archiveData() {
-            if (mappedJiras.length === 0) {
-                alert('No data to archive');
+            const selected = mappedJiras.filter(jira => jira.selected);
+            
+            if (selected.length === 0) {
+                alert('No issues selected to archive');
                 return;
             }
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             
             // Create archive files
-            const jiraArchive = JSON.stringify(mappedJiras, null, 2);
+            const jiraArchive = JSON.stringify(selected, null, 2);
             const keywordArchive = JSON.stringify(keywordMappings, null, 2);
             
             // Download jira archive
-            downloadFile(`mapped_jiras_${timestamp}.json`, jiraArchive);
+            downloadFile(`archived_jiras_${timestamp}.json`, jiraArchive);
             
             // Download keyword mapping archive
             downloadFile(`keyword_mapping_${timestamp}.json`, keywordArchive);
             
-            alert('Data archived successfully! Files downloaded.');
+            alert(`${selected.length} issue(s) archived successfully! Files downloaded.`);
         }
 
         function clearData() {
@@ -1696,6 +1950,150 @@
                 mappedJiras[index][field] = value;
                 saveJiraData();
             }
+        }
+
+        function toggleDetail(index) {
+            const detailRow = document.getElementById(`detail-${index}`);
+            const expandBtn = document.getElementById(`expand-${index}`);
+            
+            detailRow.classList.toggle('active');
+            expandBtn.classList.toggle('expanded');
+            
+            const icon = expandBtn.querySelector('i');
+            if (detailRow.classList.contains('active')) {
+                icon.className = 'fas fa-chevron-down';
+            } else {
+                icon.className = 'fas fa-chevron-right';
+            }
+        }
+
+        function toggleRowSelection(index) {
+            if (mappedJiras[index]) {
+                const checkbox = document.querySelector(`.row-checkbox[data-index="${index}"]`);
+                mappedJiras[index].selected = checkbox.checked;
+                saveJiraData();
+                updateSelectAllCheckbox();
+            }
+        }
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            
+            checkboxes.forEach((checkbox, idx) => {
+                checkbox.checked = selectAll.checked;
+                if (mappedJiras[idx]) {
+                    mappedJiras[idx].selected = selectAll.checked;
+                }
+            });
+            
+            saveJiraData();
+        }
+
+        function updateSelectAllCheckbox() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            const noneChecked = Array.from(checkboxes).every(cb => !cb.checked);
+            
+            selectAll.checked = allChecked;
+            selectAll.indeterminate = !allChecked && !noneChecked;
+        }
+
+        function filterTable() {
+            const filters = Array.from(document.querySelectorAll('.filter-input')).map(input => input.value.toLowerCase());
+            const rows = document.querySelectorAll('#dataGridBody tr:not(.detail-row)');
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                let show = true;
+                
+                filters.forEach((filter, idx) => {
+                    if (filter && cells[idx + 1]) { // +1 to skip checkbox column
+                        const cellText = cells[idx + 1].textContent.toLowerCase();
+                        if (!cellText.includes(filter)) {
+                            show = false;
+                        }
+                    }
+                });
+                
+                row.style.display = show ? '' : 'none';
+                
+                // Also hide/show detail row
+                const rowIndex = row.querySelector('.row-checkbox')?.dataset.index;
+                if (rowIndex) {
+                    const detailRow = document.getElementById(`detail-${rowIndex}`);
+                    if (detailRow) {
+                        detailRow.style.display = show ? '' : 'none';
+                    }
+                }
+            });
+        }
+
+        function saveSelectedAsJSON() {
+            const selected = mappedJiras.filter(jira => jira.selected);
+            
+            if (selected.length === 0) {
+                alert('No issues selected');
+                return;
+            }
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const json = JSON.stringify(selected, null, 2);
+            downloadFile(`selected_jiras_${timestamp}.json`, json);
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            
+            // Escape HTML first
+            let html = escapeHtml(text);
+            
+            // Convert markdown to HTML
+            // Headers
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            
+            // Horizontal rules (----, ****, ____)
+            html = html.replace(/^-{3,}$/gm, '<hr>');
+            html = html.replace(/^\*{3,}$/gm, '<hr>');
+            html = html.replace(/^_{3,}$/gm, '<hr>');
+            
+            // Bold and italic
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+            html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+            
+            // Code blocks
+            html = html.replace(/```(.+?)```/gs, '<pre><code>$1</code></pre>');
+            html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+            
+            // Lists
+            html = html.replace(/^\* (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            
+            // Wrap consecutive <li> in <ul>
+            html = html.replace(/(<li>.*<\/li>\n?)+/g, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Blockquotes
+            html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+            
+            // Paragraphs (wrap text that's not already in tags)
+            html = html.split('\n\n').map(para => {
+                para = para.trim();
+                if (!para) return '';
+                if (para.match(/^<(h[1-3]|hr|ul|ol|pre|blockquote)/)) {
+                    return para;
+                }
+                return '<p>' + para.replace(/\n/g, '<br>') + '</p>';
+            }).join('\n');
+            
+            return html;
         }
     </script>
 </body>
