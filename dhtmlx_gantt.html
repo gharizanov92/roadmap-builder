@@ -267,6 +267,27 @@
             color: #666;
         }
         
+        .editable-progress, .editable-duration {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .editable-progress:hover, .editable-duration:hover {
+            background: rgba(0, 122, 255, 0.1);
+        }
+        
+        .editable-progress input, .editable-duration input {
+            width: 50px;
+            padding: 2px 4px;
+            border: 2px solid #007aff;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: center;
+        }
+        
         .duration-text {
             width: 100px;
             flex-shrink: 0;
@@ -564,7 +585,7 @@
             position: relative;
             height: 50px;
             border-bottom: 1px solid #f0f0f0;
-            z-index: 10;
+            z-index: 1;
         }
         
         .epic-pill {
@@ -697,6 +718,7 @@
                 <button class="btn-close" onclick="refreshCustomExport()">🔄 Refresh</button>
                 <button class="btn-close" onclick="reconfigureSprints()">⚙️ Configure Sprints</button>
                 <button class="btn-download" onclick="downloadCustomExport()">Download as PNG</button>
+                <button class="btn-download" onclick="downloadAsSVG()">Download as SVG</button>
             </div>
         </div>
         <div class="export-content">
@@ -1224,9 +1246,9 @@
                     leftHTML += 'stroke-dashoffset="' + offset + '"></circle>';
                     leftHTML += '</svg>';
                     leftHTML += '</div>';
-                    leftHTML += '<span class="progress-text">' + progress + '%</span>';
+                    leftHTML += '<span class="progress-text editable-progress" data-epic-id="' + epic.id + '" onclick="makeProgressEditable(this)">' + progress + '%</span>';
                     leftHTML += '</div>';
-                    leftHTML += '<div class="duration-text">' + epic.duration + ' days</div>';
+                    leftHTML += '<div class="duration-text editable-duration" data-epic-id="' + epic.id + '" onclick="makeDurationEditable(this)">' + epic.duration + ' days</div>';
                     leftHTML += '</div>';
                 });
                 
@@ -1410,13 +1432,39 @@
         }
         
         function renderDependencyArrows() {
-            // Remove existing arrows
-            document.querySelectorAll('.dependency-arrow').forEach(function(arrow) {
-                arrow.remove();
-            });
+            // Remove existing canvas
+            var existingCanvas = document.getElementById('arrowCanvas');
+            if (existingCanvas) {
+                existingCanvas.remove();
+            }
             
             var timelineBody = document.querySelector('.timeline-body');
             if (!timelineBody) return;
+            
+            // Create canvas element
+            var canvas = document.createElement('canvas');
+            canvas.id = 'arrowCanvas';
+            canvas.style.position = 'absolute';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '5';
+            
+            // Set canvas size to match timeline body
+            var rect = timelineBody.getBoundingClientRect();
+            canvas.width = timelineBody.scrollWidth;
+            canvas.height = timelineBody.scrollHeight;
+            canvas.style.width = timelineBody.scrollWidth + 'px';
+            canvas.style.height = timelineBody.scrollHeight + 'px';
+            
+            timelineBody.appendChild(canvas);
+            
+            var ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#666';
+            ctx.fillStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
             
             // Get all epic pills
             var pills = document.querySelectorAll('.epic-pill');
@@ -1448,115 +1496,103 @@
                     if (sourceTask && targetPill) {
                         var sourcePill = pillMap[sourceTask.id];
                         if (sourcePill) {
-                            drawArrow(sourcePill, targetPill, timelineBody);
+                            drawArrowOnCanvas(ctx, sourcePill, targetPill, timelineBody);
                         }
                     }
                 }
             });
         }
         
-        function drawArrow(sourcePill, targetPill, container) {
+        function drawArrowOnCanvas(ctx, sourcePill, targetPill, container) {
             var sourceRect = sourcePill.getBoundingClientRect();
             var targetRect = targetPill.getBoundingClientRect();
             var containerRect = container.getBoundingClientRect();
             
-            // Get scroll offset
-            var scrollLeft = container.scrollLeft || 0;
-            var scrollTop = container.scrollTop || 0;
+            // Calculate positions relative to container
+            var startX = sourceRect.right - containerRect.left;
+            var startY = sourceRect.top + sourceRect.height / 2 - containerRect.top;
+            var endX = targetRect.left - containerRect.left;
+            var endY = targetRect.top + targetRect.height / 2 - containerRect.top;
             
-            // Calculate positions relative to container including scroll
-            var startX = sourceRect.right - containerRect.left + scrollLeft;
-            var startY = sourceRect.top + sourceRect.height / 2 - containerRect.top + scrollTop;
-            var endX = targetRect.left - containerRect.left + scrollLeft;
-            var endY = targetRect.top + targetRect.height / 2 - containerRect.top + scrollTop;
-            
-            console.log('Drawing arrow:', {startX, startY, endX, endY, gap: endX - startX});
-            
-            // Create SVG element
-            var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.classList.add('dependency-arrow');
-            
-            var minX = Math.min(startX, endX) - 10;
-            var minY = Math.min(startY, endY) - 10;
-            var maxX = Math.max(startX, endX) + 10;
-            var maxY = Math.max(startY, endY) + 10;
-            
-            svg.style.left = minX + 'px';
-            svg.style.top = minY + 'px';
-            svg.style.width = (maxX - minX) + 'px';
-            svg.style.height = (maxY - minY) + 'px';
-            svg.setAttribute('viewBox', '0 0 ' + (maxX - minX) + ' ' + (maxY - minY));
-            
-            // Adjust coordinates to SVG space
-            startX -= minX;
-            startY -= minY;
-            endX -= minX;
-            endY -= minY;
-            
-            // Create path with rounded 90-degree turns
-            var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             var radius = 8;
             var gap = endX - startX;
-            var minGap = 60; // Approximately 2 days worth of pixels
+            var minGap = 60;
             
-            var pathData = 'M ' + startX + ' ' + startY;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
             
-            if (endY === startY) {
+            if (Math.abs(endY - startY) < 2) {
                 // Straight horizontal line
-                pathData += ' L ' + (endX - 8) + ' ' + endY;
+                ctx.lineTo(endX - 8, endY);
             } else if (endX > startX) {
                 // Target is to the right
-                if (gap <= minGap && endY !== startY) {
-                    // Tight gap - use special routing
-                    // Go right, down halfway, left to 1 day before target, down rest, right to target
-                    var rightExtend = 20;
-                    var midY = startY + (endY - startY) / 2;
-                    var leftTarget = endX - 30; // 1 day before target
-                    
-                    pathData += ' L ' + (startX + rightExtend - radius) + ' ' + startY;
-                    pathData += ' Q ' + (startX + rightExtend) + ' ' + startY + ' ' + (startX + rightExtend) + ' ' + (startY + (endY > startY ? radius : -radius));
-                    pathData += ' L ' + (startX + rightExtend) + ' ' + (midY - (endY > startY ? radius : -radius));
-                    pathData += ' Q ' + (startX + rightExtend) + ' ' + midY + ' ' + (startX + rightExtend - radius) + ' ' + midY;
-                    pathData += ' L ' + (leftTarget + radius) + ' ' + midY;
-                    pathData += ' Q ' + leftTarget + ' ' + midY + ' ' + leftTarget + ' ' + (midY + (endY > startY ? radius : -radius));
-                    pathData += ' L ' + leftTarget + ' ' + (endY - (endY > startY ? radius : -radius));
-                    pathData += ' Q ' + leftTarget + ' ' + endY + ' ' + (leftTarget + radius) + ' ' + endY;
-                    pathData += ' L ' + (endX - 8) + ' ' + endY;
+                if (gap <= minGap) {
+                    // Tight gap - go right, down, right with curves
+                    var rightExtend = 15;
+                    ctx.lineTo(startX + rightExtend - radius, startY);
+                    ctx.quadraticCurveTo(startX + rightExtend, startY, startX + rightExtend, startY + (endY > startY ? radius : -radius));
+                    ctx.lineTo(startX + rightExtend, endY - (endY > startY ? radius : -radius));
+                    ctx.quadraticCurveTo(startX + rightExtend, endY, startX + rightExtend + radius, endY);
+                    ctx.lineTo(endX - 8, endY);
                 } else if (Math.abs(endY - startY) < radius * 2) {
-                    // Small vertical difference, use simple path
+                    // Small vertical difference
                     var midX = startX + (endX - startX) / 2;
-                    pathData += ' L ' + midX + ' ' + startY;
-                    pathData += ' L ' + midX + ' ' + endY;
-                    pathData += ' L ' + (endX - 8) + ' ' + endY;
+                    ctx.lineTo(midX, startY);
+                    ctx.lineTo(midX, endY);
+                    ctx.lineTo(endX - 8, endY);
                 } else {
-                    // Normal routing with rounded corners
+                    // Normal routing with curves
                     var midX = startX + (endX - startX) / 2;
-                    pathData += ' L ' + (midX - radius) + ' ' + startY;
-                    pathData += ' Q ' + midX + ' ' + startY + ' ' + midX + ' ' + (startY + (endY > startY ? radius : -radius));
-                    pathData += ' L ' + midX + ' ' + (endY - (endY > startY ? radius : -radius));
-                    pathData += ' Q ' + midX + ' ' + endY + ' ' + (midX + radius) + ' ' + endY;
-                    pathData += ' L ' + (endX - 8) + ' ' + endY;
+                    ctx.lineTo(midX - radius, startY);
+                    ctx.quadraticCurveTo(midX, startY, midX, startY + (endY > startY ? radius : -radius));
+                    ctx.lineTo(midX, endY - (endY > startY ? radius : -radius));
+                    ctx.quadraticCurveTo(midX, endY, midX + radius, endY);
+                    ctx.lineTo(endX - 8, endY);
                 }
             } else {
-                // Target is to the left (dependency goes backwards)
-                var offset = 20;
-                pathData += ' L ' + (startX + offset) + ' ' + startY;
-                pathData += ' Q ' + (startX + offset + radius) + ' ' + startY + ' ' + (startX + offset + radius) + ' ' + (startY + (endY > startY ? radius : -radius));
-                pathData += ' L ' + (startX + offset + radius) + ' ' + (endY - (endY > startY ? radius : -radius));
-                pathData += ' Q ' + (startX + offset + radius) + ' ' + endY + ' ' + (startX + offset) + ' ' + endY;
-                pathData += ' L ' + (endX - 8) + ' ' + endY;
+                // Target is to the left (backwards dependency)
+                // Route: right → down halfway → left → down rest → right to target
+                var rightExtend = 20;
+                var midY = startY + (endY - startY) / 2;
+                var leftTarget = endX - 30; // Position to the left of target
+                
+                if (Math.abs(endY - startY) < radius * 2) {
+                    // Small vertical difference - simplified path
+                    ctx.lineTo(startX + rightExtend, startY);
+                    ctx.lineTo(startX + rightExtend, endY);
+                    ctx.lineTo(endX - 8, endY);
+                } else {
+                    // Normal backwards routing: right → down halfway → left → down rest → right
+                    // Go right
+                    ctx.lineTo(startX + rightExtend - radius, startY);
+                    // Turn down
+                    ctx.quadraticCurveTo(startX + rightExtend, startY, startX + rightExtend, startY + (endY > startY ? radius : -radius));
+                    // Go down halfway
+                    ctx.lineTo(startX + rightExtend, midY - (endY > startY ? radius : -radius));
+                    // Turn left
+                    ctx.quadraticCurveTo(startX + rightExtend, midY, startX + rightExtend - radius, midY);
+                    // Go left
+                    ctx.lineTo(leftTarget + radius, midY);
+                    // Turn down
+                    ctx.quadraticCurveTo(leftTarget, midY, leftTarget, midY + (endY > startY ? radius : -radius));
+                    // Go down rest of the way
+                    ctx.lineTo(leftTarget, endY - (endY > startY ? radius : -radius));
+                    // Turn right
+                    ctx.quadraticCurveTo(leftTarget, endY, leftTarget + radius, endY);
+                    // Go right to target
+                    ctx.lineTo(endX - 8, endY);
+                }
             }
             
-            path.setAttribute('d', pathData);
-            svg.appendChild(path);
+            ctx.stroke();
             
-            // Add arrowhead
-            var arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            arrowHead.classList.add('dependency-arrow-head');
-            arrowHead.setAttribute('points', (endX - 8) + ',' + (endY - 4) + ' ' + endX + ',' + endY + ' ' + (endX - 8) + ',' + (endY + 4));
-            svg.appendChild(arrowHead);
-            
-            container.appendChild(svg);
+            // Draw arrowhead
+            ctx.beginPath();
+            ctx.moveTo(endX - 8, endY - 4);
+            ctx.lineTo(endX, endY);
+            ctx.lineTo(endX - 8, endY + 4);
+            ctx.closePath();
+            ctx.fill();
         }
         
         function downloadCustomExport() {
@@ -1590,6 +1626,9 @@
             // Force layout recalculation
             container.offsetHeight;
             
+            // Refresh arrows after layout changes
+            renderDependencyArrows();
+            
             // Calculate full dimensions with extra padding (10% buffer)
             var leftWidth = leftPanel.offsetWidth;
             var timelineWidth = timelineWrapper ? timelineWrapper.offsetWidth : 0;
@@ -1611,6 +1650,7 @@
                 x: 0,
                 y: 0
             }).then(function(canvas) {
+                // Canvas arrows are already captured by html2canvas!
                 // Restore original styles
                 rightPanel.style.overflow = originalRightOverflow;
                 rightPanel.style.width = originalRightWidth;
@@ -1622,6 +1662,9 @@
                 epicActions.forEach(function(action) {
                     action.style.display = '';
                 });
+                
+                // Refresh arrows after restoring layout
+                renderDependencyArrows();
                 
                 canvas.toBlob(function(blob) {
                     var url = URL.createObjectURL(blob);
@@ -1644,6 +1687,9 @@
                     action.style.display = '';
                 });
                 
+                // Refresh arrows after restoring layout
+                renderDependencyArrows();
+                
                 console.error('Export failed:', error);
                 alert('Export failed: ' + error.message);
             });
@@ -1652,6 +1698,146 @@
         function reconfigureSprints() {
             localStorage.removeItem('sprint_config');
             openCustomExport();
+        }
+        
+        function downloadAsSVG() {
+            var container = document.getElementById('exportContainer');
+            var leftPanel = document.getElementById('exportLeft');
+            var rightPanel = document.getElementById('exportRight');
+            var timelineWrapper = document.querySelector('.timeline-wrapper');
+            
+            // Hide epic-actions buttons
+            var epicActions = document.querySelectorAll('.epic-actions');
+            epicActions.forEach(function(action) {
+                action.style.display = 'none';
+            });
+            
+            // Calculate dimensions
+            var leftWidth = leftPanel.offsetWidth;
+            var timelineWidth = timelineWrapper ? timelineWrapper.offsetWidth : 0;
+            var fullWidth = leftWidth + timelineWidth + 48; // Include padding
+            var fullHeight = container.offsetHeight;
+            
+            // Create SVG
+            var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', fullWidth);
+            svg.setAttribute('height', fullHeight);
+            svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            
+            // Add white background
+            var background = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            background.setAttribute('width', fullWidth);
+            background.setAttribute('height', fullHeight);
+            background.setAttribute('fill', '#ffffff');
+            svg.appendChild(background);
+            
+            // Create foreignObject for left panel
+            var leftFO = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+            leftFO.setAttribute('x', 0);
+            leftFO.setAttribute('y', 0);
+            leftFO.setAttribute('width', leftWidth);
+            leftFO.setAttribute('height', fullHeight);
+            
+            var leftClone = leftPanel.cloneNode(true);
+            leftClone.style.width = leftWidth + 'px';
+            leftClone.style.height = fullHeight + 'px';
+            leftFO.appendChild(leftClone);
+            svg.appendChild(leftFO);
+            
+            // Create foreignObject for right panel (timeline)
+            var rightFO = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+            rightFO.setAttribute('x', leftWidth + 24);
+            rightFO.setAttribute('y', 0);
+            rightFO.setAttribute('width', timelineWidth);
+            rightFO.setAttribute('height', fullHeight);
+            
+            var rightClone = rightPanel.cloneNode(true);
+            rightClone.style.width = timelineWidth + 'px';
+            rightClone.style.height = fullHeight + 'px';
+            rightClone.style.overflow = 'visible';
+            rightFO.appendChild(rightClone);
+            svg.appendChild(rightFO);
+            
+            // Convert canvas arrows to SVG
+            var arrowCanvas = document.getElementById('arrowCanvas');
+            if (arrowCanvas) {
+                var timelineBodyRect = document.querySelector('.timeline-body').getBoundingClientRect();
+                var exportContentRect = document.querySelector('.export-content').getBoundingClientRect();
+                
+                // Calculate position of canvas relative to export content
+                var scrollLeft = document.querySelector('.export-content').scrollLeft || 0;
+                var scrollTop = document.querySelector('.export-content').scrollTop || 0;
+                
+                var canvasX = timelineBodyRect.left - exportContentRect.left + scrollLeft;
+                var canvasY = timelineBodyRect.top - exportContentRect.top + scrollTop;
+                
+                // Convert canvas to image and embed in SVG
+                var canvasImage = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                canvasImage.setAttribute('x', canvasX);
+                canvasImage.setAttribute('y', canvasY);
+                canvasImage.setAttribute('width', arrowCanvas.width);
+                canvasImage.setAttribute('height', arrowCanvas.height);
+                canvasImage.setAttribute('href', arrowCanvas.toDataURL('image/png'));
+                
+                svg.appendChild(canvasImage);
+            }
+            
+            // Add embedded styles
+            var style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+            style.textContent = `
+                .resource-group { margin-bottom: 24px; }
+                .resource-name { font-size: 15px; font-weight: 700; color: #1a1a1a; padding: 8px 0; margin-bottom: 8px; }
+                .epic-row { display: flex; align-items: center; height: 50px; padding-left: 20px; border-bottom: 1px solid #f0f0f0; }
+                .epic-name { flex: 1; font-size: 14px; color: #333; padding-right: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 50px; }
+                .progress-circle-container { width: 120px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 8px; }
+                .progress-circle { width: 36px; height: 36px; position: relative; }
+                .progress-circle svg { transform: rotate(-90deg); }
+                .progress-circle-bg { fill: none; stroke: #e0e0e0; stroke-width: 3; }
+                .progress-circle-fill { fill: none; stroke-width: 3; stroke-linecap: round; }
+                .progress-text { font-size: 11px; font-weight: 600; color: #666; }
+                .duration-text { width: 100px; flex-shrink: 0; text-align: right; font-size: 13px; color: #666; font-weight: 500; }
+                .grid-header { display: flex; padding: 12px 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 16px; }
+                .grid-col-task { flex: 1; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+                .grid-col-progress { width: 120px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
+                .grid-col-estimate { width: 100px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; }
+                .timeline-header-wrapper { border-bottom: 2px solid #e0e0e0; margin-bottom: 16px; }
+                .timeline-header { position: relative; height: 40px; }
+                .timeline-month { position: absolute; text-align: center; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: center; }
+                .timeline-body { position: relative; }
+                .sprint-background { position: absolute; top: 0; bottom: 0; background: rgba(102, 126, 234, 0.03); z-index: 1; pointer-events: none; }
+                .weekend-background { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.02); z-index: 2; pointer-events: none; }
+                .sprint-separator { position: absolute; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, rgba(102, 126, 234, 0.3) 0%, rgba(102, 126, 234, 0.15) 50%, rgba(102, 126, 234, 0.3) 100%); z-index: 5; pointer-events: none; }
+                .timeline-resource-group { margin-bottom: 24px; }
+                .timeline-resource-name { font-size: 15px; font-weight: 700; color: #1a1a1a; padding: 8px 0; margin-bottom: 8px; }
+                .timeline-row { position: relative; height: 50px; border-bottom: 1px solid #f0f0f0; z-index: 1; }
+                .epic-pill { position: absolute; height: 32px; top: 9px; border-radius: 16px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: white; font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); overflow: hidden; z-index: 10; }
+                .epic-pill-progress-bg { position: absolute; left: 0; top: 0; height: 100%; background: rgba(255, 255, 255, 0.25); border-radius: 16px; pointer-events: none; }
+                .epic-pill-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 1; }
+                .epic-pill-progress { flex-shrink: 0; background: rgba(255, 255, 255, 0.25); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; position: relative; z-index: 1; }
+                * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+            `;
+            svg.insertBefore(style, svg.firstChild);
+            
+            // Serialize SVG
+            var serializer = new XMLSerializer();
+            var svgString = serializer.serializeToString(svg);
+            
+            // Add XML declaration and DOCTYPE
+            svgString = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgString;
+            
+            // Create blob and download
+            var blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'roadmap-export-' + new Date().toISOString().split('T')[0] + '.svg';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            // Show epic-actions buttons again
+            epicActions.forEach(function(action) {
+                action.style.display = '';
+            });
         }
         
         function setupDragAndDrop() {
@@ -2054,6 +2240,130 @@
                     renderCustomExport();
                 }
             }, { once: true });
+        }
+        
+        function makeProgressEditable(element) {
+            var epicId = parseInt(element.getAttribute('data-epic-id'));
+            var currentProgress = parseInt(element.textContent);
+            
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.max = '100';
+            input.value = currentProgress;
+            input.style.width = '50px';
+            
+            element.textContent = '';
+            element.appendChild(input);
+            input.focus();
+            input.select();
+            
+            var saveProgress = function() {
+                var newProgress = parseInt(input.value);
+                if (isNaN(newProgress) || newProgress < 0 || newProgress > 100) {
+                    newProgress = currentProgress;
+                }
+                
+                // Update gantt task
+                var task = gantt.getTask(epicId);
+                if (task) {
+                    task.progress = newProgress / 100;
+                    gantt.updateTask(epicId);
+                    
+                    // Update localStorage (issues page data)
+                    var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
+                    if (task.originalIndex !== undefined && jiras[task.originalIndex]) {
+                        jiras[task.originalIndex].progress = newProgress;
+                        localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
+                    }
+                    
+                    // Notify parent window
+                    window.parent.postMessage({
+                        type: 'updateEpicProgress',
+                        originalIndex: task.originalIndex,
+                        progress: newProgress
+                    }, '*');
+                }
+                
+                renderCustomExport();
+            };
+            
+            input.addEventListener('blur', saveProgress);
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveProgress();
+                } else if (e.key === 'Escape') {
+                    renderCustomExport();
+                }
+            });
+        }
+        
+        function makeDurationEditable(element) {
+            var epicId = parseInt(element.getAttribute('data-epic-id'));
+            var currentDuration = parseInt(element.textContent);
+            
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.min = '1';
+            input.value = currentDuration;
+            input.style.width = '50px';
+            
+            element.textContent = '';
+            element.appendChild(input);
+            input.focus();
+            input.select();
+            
+            var saveDuration = function() {
+                var newDuration = parseInt(input.value);
+                if (isNaN(newDuration) || newDuration < 1) {
+                    newDuration = currentDuration;
+                }
+                
+                // Calculate the difference in days
+                var daysDifference = newDuration - currentDuration;
+                
+                // Update gantt task
+                var task = gantt.getTask(epicId);
+                if (task) {
+                    task.duration = newDuration;
+                    gantt.updateTask(epicId);
+                    
+                    // Update localStorage (issues page data)
+                    var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
+                    if (task.originalIndex !== undefined && jiras[task.originalIndex]) {
+                        // Get current end date and adjust by the difference
+                        var currentEndDate = new Date(jiras[task.originalIndex].endDate);
+                        currentEndDate.setDate(currentEndDate.getDate() + daysDifference);
+                        
+                        jiras[task.originalIndex].endDate = currentEndDate.toISOString().split('T')[0];
+                        localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
+                        
+                        console.log('Duration changed from', currentDuration, 'to', newDuration, '(', daysDifference > 0 ? '+' + daysDifference : daysDifference, 'days)');
+                        console.log('New end date:', jiras[task.originalIndex].endDate);
+                    }
+                    
+                    // Notify parent window
+                    window.parent.postMessage({
+                        type: 'updateEpicDates',
+                        originalIndex: task.originalIndex,
+                        startDate: task.start_date,
+                        duration: newDuration
+                    }, '*');
+                }
+                
+                renderCustomExport();
+            };
+            
+            input.addEventListener('blur', saveDuration);
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveDuration();
+                } else if (e.key === 'Escape') {
+                    renderCustomExport();
+                }
+            });
         }
     </script>
 </body>
