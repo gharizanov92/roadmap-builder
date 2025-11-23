@@ -1312,18 +1312,23 @@
     <div class="main-content">
         <div class="dashboard-header">
             <div class="dashboard-title" id="viewTitle">Issue Mapping</div>
-            <div class="dashboard-stats">
-                <div class="stat-item">
-                    <div class="stat-value" id="totalIssues">0</div>
-                    <div class="stat-label">Total Issues</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="selectedIssues">0</div>
-                    <div class="stat-label">Selected</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="totalResources">0</div>
-                    <div class="stat-label">Resources</div>
+            <div style="display:flex;align-items:center;gap:16px;">
+                <button id="exportPdfBtn" style="display:none;" onclick="exportGanttToPdf()">
+                    <i class="fas fa-file-pdf"></i> Export PDF
+                </button>
+                <div class="dashboard-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalIssues">0</div>
+                        <div class="stat-label">Total Issues</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="selectedIssues">0</div>
+                        <div class="stat-label">Selected</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalResources">0</div>
+                        <div class="stat-label">Resources</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2701,19 +2706,26 @@
                 view.classList.remove('active');
             });
             
+            // Show/hide export button
+            const exportBtn = document.getElementById('exportPdfBtn');
+            
             if (viewName === 'issues') {
                 document.getElementById('issuesView').classList.add('active');
                 document.getElementById('viewTitle').textContent = 'Issues';
+                exportBtn.style.display = 'none';
             } else if (viewName === 'automagic') {
                 document.getElementById('automagicView').classList.add('active');
                 document.getElementById('viewTitle').textContent = 'Automagic';
+                exportBtn.style.display = 'none';
             } else if (viewName === 'gantt') {
                 document.getElementById('ganttView').classList.add('active');
                 document.getElementById('viewTitle').textContent = 'Gantt Chart';
+                exportBtn.style.display = 'inline-flex';
                 renderGanttChart();
             } else if (viewName === 'timeline') {
                 document.getElementById('timelineView').classList.add('active');
                 document.getElementById('viewTitle').textContent = 'Timeline View';
+                exportBtn.style.display = 'inline-flex';
                 renderFrappeGantt();
             }
         }
@@ -2728,6 +2740,65 @@
             document.getElementById('totalResources').textContent = resources;
         }
 
+        function exportGanttToPdf() {
+            const activeView = document.querySelector('.view.active');
+            
+            if (activeView.id === 'ganttView') {
+                // Export amCharts Gantt via iframe
+                const ganttFrame = document.getElementById('ganttFrame');
+                ganttFrame.contentWindow.postMessage({
+                    type: 'exportPdf'
+                }, '*');
+            } else if (activeView.id === 'timelineView') {
+                // Export custom timeline view
+                exportTimelineToPdf();
+            }
+        }
+        
+        function exportTimelineToPdf() {
+            // Use html2canvas and jsPDF to export the timeline
+            const container = document.getElementById('frappeGanttContainer');
+            
+            // Load libraries if not already loaded
+            if (typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
+                const script1 = document.createElement('script');
+                script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                script1.onload = () => {
+                    const script2 = document.createElement('script');
+                    script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    script2.onload = () => {
+                        captureAndExportTimeline(container);
+                    };
+                    document.head.appendChild(script2);
+                };
+                document.head.appendChild(script1);
+            } else {
+                captureAndExportTimeline(container);
+            }
+        }
+        
+        function captureAndExportTimeline(container) {
+            html2canvas(container, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jspdf.jsPDF({
+                    orientation: 'landscape',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                const imgWidth = 297; // A4 landscape width in mm
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                pdf.save('timeline-' + new Date().toISOString().split('T')[0] + '.pdf');
+            });
+        }
+        
         function renderGanttChart() {
             // Filter selected issues with categories
             let selectedIssues = mappedJiras.filter(jira => 

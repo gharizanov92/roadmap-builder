@@ -17,6 +17,7 @@
 <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
 <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
 <script src="https://cdn.amcharts.com/lib/5/plugins/colorPicker.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/plugins/exporting.js"></script>
 <script src="https://cdn.amcharts.com/lib/5/gantt.js"></script>
 <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
 
@@ -24,6 +25,7 @@
 <script>
 var root = null;
 var gantt = null;
+var exporting = null;
 
 function renderGanttChart(roadmapData) {
   // Dispose existing chart if any
@@ -41,6 +43,22 @@ function renderGanttChart(roadmapData) {
   gantt = root.container.children.push(
     am5gantt.Gantt.new(root, {})
   );
+  
+  // Add exporting menu
+  exporting = am5plugins_exporting.Exporting.new(root, {
+    menu: am5plugins_exporting.ExportingMenu.new(root, {}),
+    pdfOptions: {
+      pageSize: "A4",
+      pageOrientation: "landscape",
+      addURL: false
+    },
+    pngOptions: {
+      quality: 0.9
+    },
+    jpgOptions: {
+      quality: 0.9
+    }
+  });
 
   // ===== 2) Transform JSON -> categoryData + seriesData ========
 
@@ -141,6 +159,11 @@ var defaultRoadmapData = [
 window.addEventListener('message', function(event) {
   if (event.data.type === 'updateGantt' && event.data.data) {
     renderGanttChart(event.data.data);
+  } else if (event.data.type === 'exportPdf') {
+    // Trigger PDF export
+    if (exporting) {
+      exporting.download("pdf");
+    }
   }
 });
 
