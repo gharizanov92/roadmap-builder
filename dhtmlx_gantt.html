@@ -361,9 +361,23 @@
         }
         
         .dependency-modal-header p {
-            margin: 0;
+            margin: 0 0 12px 0;
             font-size: 13px;
             color: #666;
+        }
+        
+        .dependency-search {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        
+        .dependency-search:focus {
+            outline: none;
+            border-color: #007aff;
         }
         
         .dependency-list {
@@ -401,6 +415,20 @@
         .dependency-item-resource {
             font-size: 12px;
             color: #666;
+        }
+        
+        .dependency-group {
+            margin-bottom: 16px;
+        }
+        
+        .dependency-group-header {
+            font-weight: 700;
+            font-size: 13px;
+            color: #1a1a1a;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
         }
         
         .dependency-modal-actions {
@@ -674,6 +702,7 @@
             <div class="dependency-modal-header">
                 <h3>Link Epic</h3>
                 <p>Select an epic that this one depends on</p>
+                <input type="text" class="dependency-search" id="dependencySearch" placeholder="Search epics..." oninput="filterDependencies()">
             </div>
             <div class="dependency-list" id="dependencyList"></div>
             <div class="dependency-modal-actions">
@@ -739,7 +768,7 @@
             var resourceMap = {};
             
             // Group by resource
-            roadmapData.forEach(function(item) {
+            roadmapData.forEach(function(item, index) {
                 var resource = item.resource || 'Unassigned';
                 if (!resourceMap[resource]) {
                     resourceMap[resource] = taskId++;
@@ -762,7 +791,8 @@
                     duration: duration,
                     progress: item.progress / 100,
                     parent: resourceMap[resource],
-                    dependency: item.dependency !== undefined ? item.dependency : null
+                    dependency: item.dependency !== undefined ? item.dependency : null,
+                    originalIndex: item.originalIndex !== undefined ? item.originalIndex : index
                 });
             });
             
@@ -1346,8 +1376,9 @@
             
             // Create path with rounded 90-degree turns
             var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            var midX = startX + (endX - startX) / 2;
             var radius = 8;
+            var gap = endX - startX;
+            var minGap = 60; // Approximately 2 days worth of pixels
             
             var pathData = 'M ' + startX + ' ' + startY;
             
@@ -1356,13 +1387,31 @@
                 pathData += ' L ' + (endX - 8) + ' ' + endY;
             } else if (endX > startX) {
                 // Target is to the right
-                if (Math.abs(endY - startY) < radius * 2) {
+                if (gap <= minGap && endY !== startY) {
+                    // Tight gap - use special routing
+                    // Go right, down halfway, left to 1 day before target, down rest, right to target
+                    var rightExtend = 20;
+                    var midY = startY + (endY - startY) / 2;
+                    var leftTarget = endX - 30; // 1 day before target
+                    
+                    pathData += ' L ' + (startX + rightExtend - radius) + ' ' + startY;
+                    pathData += ' Q ' + (startX + rightExtend) + ' ' + startY + ' ' + (startX + rightExtend) + ' ' + (startY + (endY > startY ? radius : -radius));
+                    pathData += ' L ' + (startX + rightExtend) + ' ' + (midY - (endY > startY ? radius : -radius));
+                    pathData += ' Q ' + (startX + rightExtend) + ' ' + midY + ' ' + (startX + rightExtend - radius) + ' ' + midY;
+                    pathData += ' L ' + (leftTarget + radius) + ' ' + midY;
+                    pathData += ' Q ' + leftTarget + ' ' + midY + ' ' + leftTarget + ' ' + (midY + (endY > startY ? radius : -radius));
+                    pathData += ' L ' + leftTarget + ' ' + (endY - (endY > startY ? radius : -radius));
+                    pathData += ' Q ' + leftTarget + ' ' + endY + ' ' + (leftTarget + radius) + ' ' + endY;
+                    pathData += ' L ' + (endX - 8) + ' ' + endY;
+                } else if (Math.abs(endY - startY) < radius * 2) {
                     // Small vertical difference, use simple path
+                    var midX = startX + (endX - startX) / 2;
                     pathData += ' L ' + midX + ' ' + startY;
                     pathData += ' L ' + midX + ' ' + endY;
                     pathData += ' L ' + (endX - 8) + ' ' + endY;
                 } else {
-                    // Use rounded corners
+                    // Normal routing with rounded corners
+                    var midX = startX + (endX - startX) / 2;
                     pathData += ' L ' + (midX - radius) + ' ' + startY;
                     pathData += ' Q ' + midX + ' ' + startY + ' ' + midX + ' ' + (startY + (endY > startY ? radius : -radius));
                     pathData += ' L ' + midX + ' ' + (endY - (endY > startY ? radius : -radius));
@@ -1405,6 +1454,12 @@
             var originalContentOverflow = exportContent.style.overflow;
             var originalContainerDisplay = container.style.display;
             
+            // Hide epic-actions buttons
+            var epicActions = document.querySelectorAll('.epic-actions');
+            epicActions.forEach(function(action) {
+                action.style.display = 'none';
+            });
+            
             // Temporarily modify styles to show full content
             rightPanel.style.overflow = 'visible';
             rightPanel.style.width = 'auto';
@@ -1444,6 +1499,11 @@
                 exportContent.style.overflow = originalContentOverflow;
                 container.style.display = originalContainerDisplay;
                 
+                // Show epic-actions buttons again
+                epicActions.forEach(function(action) {
+                    action.style.display = '';
+                });
+                
                 canvas.toBlob(function(blob) {
                     var url = URL.createObjectURL(blob);
                     var a = document.createElement('a');
@@ -1459,6 +1519,11 @@
                 rightPanel.style.minWidth = originalRightMinWidth;
                 exportContent.style.overflow = originalContentOverflow;
                 container.style.display = originalContainerDisplay;
+                
+                // Show epic-actions buttons again
+                epicActions.forEach(function(action) {
+                    action.style.display = '';
+                });
                 
                 console.error('Export failed:', error);
                 alert('Export failed: ' + error.message);
@@ -1622,7 +1687,7 @@
                     // Notify parent window to update the issues page
                     window.parent.postMessage({
                         type: 'updateEpicDates',
-                        epicId: epicId,
+                        originalIndex: task.originalIndex,
                         startDate: task.start_date,
                         duration: duration
                     }, '*');
@@ -1635,13 +1700,20 @@
         var currentDependencyEpicId = null;
         var selectedDependencyIndex = null;
         
+        var allDependencyItems = [];
+        
         function openDependencyModal(epicId) {
             currentDependencyEpicId = epicId;
             selectedDependencyIndex = null;
+            allDependencyItems = [];
             
             var modal = document.getElementById('dependencyModal');
             var list = document.getElementById('dependencyList');
             var removeBtn = document.getElementById('removeDependencyBtn');
+            var searchInput = document.getElementById('dependencySearch');
+            
+            // Clear search
+            searchInput.value = '';
             
             // Get current epic
             var currentTask = gantt.getTask(epicId);
@@ -1655,30 +1727,112 @@
                 removeBtn.style.display = 'none';
             }
             
-            // Build list of available epics
-            list.innerHTML = '';
+            // Group epics by resource
+            var epicsByResource = {};
             var epicIndex = 0;
+            
             gantt.eachTask(function(task) {
                 if (task.type !== 'project' && task.id !== epicId) {
                     var parentTask = gantt.getTask(task.parent);
-                    var isSelected = epicIndex === currentDependency;
+                    var resourceName = parentTask.text;
                     
-                    var item = document.createElement('div');
-                    item.className = 'dependency-item' + (isSelected ? ' selected' : '');
-                    item.setAttribute('data-index', epicIndex);
-                    item.onclick = function() {
-                        selectDependency(epicIndex);
-                    };
+                    if (!epicsByResource[resourceName]) {
+                        epicsByResource[resourceName] = [];
+                    }
                     
-                    item.innerHTML = '<div class="dependency-item-title">' + task.text + '</div>' +
-                                   '<div class="dependency-item-resource">' + parentTask.text + '</div>';
+                    epicsByResource[resourceName].push({
+                        task: task,
+                        parentTask: parentTask,
+                        index: epicIndex,
+                        isSelected: epicIndex === currentDependency
+                    });
                     
-                    list.appendChild(item);
+                    allDependencyItems.push({
+                        task: task,
+                        parentTask: parentTask,
+                        index: epicIndex,
+                        isSelected: epicIndex === currentDependency,
+                        resourceName: resourceName
+                    });
+                    
                     epicIndex++;
                 }
             });
             
+            // Render grouped list
+            renderDependencyList(epicsByResource);
+            
             modal.classList.add('active');
+        }
+        
+        function renderDependencyList(epicsByResource) {
+            var list = document.getElementById('dependencyList');
+            list.innerHTML = '';
+            
+            // Sort resources alphabetically
+            var sortedResources = Object.keys(epicsByResource).sort();
+            
+            sortedResources.forEach(function(resourceName) {
+                var group = document.createElement('div');
+                group.className = 'dependency-group';
+                
+                var header = document.createElement('div');
+                header.className = 'dependency-group-header';
+                header.textContent = resourceName;
+                group.appendChild(header);
+                
+                epicsByResource[resourceName].forEach(function(epicData) {
+                    var item = document.createElement('div');
+                    item.className = 'dependency-item' + (epicData.isSelected ? ' selected' : '');
+                    item.setAttribute('data-index', epicData.index);
+                    item.setAttribute('data-epic-name', epicData.task.text.toLowerCase());
+                    item.setAttribute('data-resource-name', resourceName.toLowerCase());
+                    item.onclick = function() {
+                        selectDependency(epicData.index);
+                    };
+                    
+                    item.innerHTML = '<div class="dependency-item-title">' + epicData.task.text + '</div>';
+                    
+                    group.appendChild(item);
+                });
+                
+                list.appendChild(group);
+            });
+        }
+        
+        function filterDependencies() {
+            var searchInput = document.getElementById('dependencySearch');
+            var searchTerm = searchInput.value.toLowerCase();
+            
+            if (!searchTerm) {
+                // Show all grouped
+                var epicsByResource = {};
+                allDependencyItems.forEach(function(item) {
+                    if (!epicsByResource[item.resourceName]) {
+                        epicsByResource[item.resourceName] = [];
+                    }
+                    epicsByResource[item.resourceName].push(item);
+                });
+                renderDependencyList(epicsByResource);
+                return;
+            }
+            
+            // Filter items
+            var filtered = allDependencyItems.filter(function(item) {
+                return item.task.text.toLowerCase().includes(searchTerm) ||
+                       item.resourceName.toLowerCase().includes(searchTerm);
+            });
+            
+            // Group filtered items
+            var epicsByResource = {};
+            filtered.forEach(function(item) {
+                if (!epicsByResource[item.resourceName]) {
+                    epicsByResource[item.resourceName] = [];
+                }
+                epicsByResource[item.resourceName].push(item);
+            });
+            
+            renderDependencyList(epicsByResource);
         }
         
         function closeDependencyModal() {
@@ -1710,7 +1864,7 @@
                 // Notify parent window to update the issues page
                 window.parent.postMessage({
                     type: 'updateEpicDependency',
-                    epicId: currentDependencyEpicId,
+                    originalIndex: task.originalIndex,
                     dependency: selectedDependencyIndex
                 }, '*');
                 
@@ -1728,7 +1882,7 @@
                 // Notify parent window to update the issues page
                 window.parent.postMessage({
                     type: 'updateEpicDependency',
-                    epicId: currentDependencyEpicId,
+                    originalIndex: task.originalIndex,
                     dependency: null
                 }, '*');
                 

@@ -2875,7 +2875,8 @@
                 end: jira.endDate,
                 progress: jira.progress || 0,
                 status: jira.status || 'To Do',
-                dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null
+                dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null,
+                originalIndex: mappedJiras.indexOf(jira)
             }));
             
             // Send data to iframe
@@ -2958,7 +2959,8 @@
                 end: jira.endDate,
                 progress: jira.progress || 0,
                 status: jira.status || 'To Do',
-                dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null
+                dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null,
+                originalIndex: mappedJiras.indexOf(jira)
             }));
             
             // Wait for iframe to load, then send data
@@ -2980,6 +2982,34 @@
                 ganttFrame.onload = sendDataToIframe;
             }
         }
+        
+        // Listen for messages from Gantt chart iframe
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'updateEpicDependency') {
+                var originalIndex = event.data.originalIndex;
+                var dependency = event.data.dependency;
+                
+                if (originalIndex !== undefined && originalIndex >= 0 && originalIndex < mappedJiras.length) {
+                    mappedJiras[originalIndex].dependency = dependency;
+                    saveJiraData();
+                    console.log('Updated dependency for epic at index', originalIndex, 'to', dependency);
+                }
+            } else if (event.data && event.data.type === 'updateEpicDates') {
+                var originalIndex = event.data.originalIndex;
+                var startDate = event.data.startDate;
+                var duration = event.data.duration;
+                
+                if (originalIndex !== undefined && originalIndex >= 0 && originalIndex < mappedJiras.length) {
+                    mappedJiras[originalIndex].startDate = startDate;
+                    var endDate = new Date(startDate);
+                    endDate.setDate(endDate.getDate() + duration);
+                    mappedJiras[originalIndex].endDate = endDate.toISOString().split('T')[0];
+                    saveJiraData();
+                    renderDataGrid();
+                    console.log('Updated dates for epic at index', originalIndex);
+                }
+            }
+        });
         
         function renderFrappeGantt() {
             // Filter selected issues with categories
