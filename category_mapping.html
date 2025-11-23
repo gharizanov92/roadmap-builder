@@ -151,9 +151,18 @@
 
         .view {
             display: none;
+            height: 100%;
         }
 
         .view.active {
+            display: block;
+        }
+        
+        #ganttView, #timelineView {
+            height: 100%;
+        }
+        
+        #ganttView iframe {
             display: block;
         }
 
@@ -1354,7 +1363,7 @@
         <div class="view-container">
             <!-- Mapping View -->
             <div class="view active" id="mappingView">
-                <div class="container"></div>
+                <div class="container">
         <div class="section">
             <div class="collapsible-header" onclick="toggleCollapse()">
                 <i class="fas fa-chevron-down collapse-icon" id="collapseIcon"></i>
