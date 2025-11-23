@@ -126,7 +126,7 @@
         }
         
         .export-left {
-            width: 400px;
+            width: 500px;
             flex-shrink: 0;
             border-right: 2px solid #e0e0e0;
             padding-right: 24px;
@@ -155,7 +155,8 @@
         }
         
         .grid-col-progress {
-            width: 100px;
+            width: 120px;
+            flex-shrink: 0;
             font-size: 12px;
             font-weight: 700;
             color: #666;
@@ -165,7 +166,8 @@
         }
         
         .grid-col-duration {
-            width: 80px;
+            width: 100px;
+            flex-shrink: 0;
             font-size: 12px;
             font-weight: 700;
             color: #666;
@@ -189,7 +191,8 @@
         .epic-row {
             display: flex;
             align-items: center;
-            padding: 10px 0 10px 20px;
+            height: 50px;
+            padding-left: 20px;
             border-bottom: 1px solid #f0f0f0;
         }
         
@@ -197,10 +200,31 @@
             flex: 1;
             font-size: 14px;
             color: #333;
+            padding-right: 20px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: text;
+            line-height: 50px;
+        }
+        
+        .epic-name:hover {
+            background: rgba(0, 122, 255, 0.05);
+            border-radius: 4px;
+        }
+        
+        .epic-name[contenteditable="true"] {
+            outline: 2px solid #007aff;
+            background: white;
+            border-radius: 4px;
+            padding: 2px 4px;
+            white-space: normal;
+            overflow: visible;
         }
         
         .progress-circle-container {
-            width: 100px;
+            width: 120px;
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -237,22 +261,32 @@
         }
         
         .duration-text {
-            width: 80px;
+            width: 100px;
+            flex-shrink: 0;
             text-align: right;
             font-size: 13px;
             color: #666;
             font-weight: 500;
         }
         
+        .epic-name::after {
+            content: '✎';
+            opacity: 0;
+            margin-left: 8px;
+            font-size: 12px;
+            color: #007aff;
+            transition: opacity 0.2s;
+        }
+        
+        .epic-name:hover::after {
+            opacity: 0.6;
+        }
+        
         .timeline-header {
             display: flex;
+            padding: 12px 0;
             border-bottom: 2px solid #e0e0e0;
             margin-bottom: 16px;
-            padding-bottom: 12px;
-            position: sticky;
-            top: 0;
-            background: white;
-            z-index: 10;
         }
         
         .timeline-month {
@@ -664,11 +698,19 @@
                     var offset = circumference - (progress / 100) * circumference;
                     var circleColor = solidColors[resource.colorIndex];
                     
-                    // Remove JIRA key from epic name (assumes format like "PROJ-123 Summary")
-                    var epicName = epic.text.replace(/^[A-Z]+-\d+\s*/, '');
+                    // Clean epic name: remove JIRA key, bracketed tags, dashes, and leading ': '
+                    var epicName = epic.text
+                        .replace(/^[A-Z]+-\d+\s*/, '')     // Remove JIRA key
+                        .replace(/^\[.*?\]\s*/, '')        // Remove bracketed tags like [XYZ]
+                        .replace(/^[-:]\s*/, '')           // Remove leading dash or colon
+                        .trim();                           // Remove any extra whitespace
+                    
+                    // Check for custom name in localStorage
+                    var customNames = JSON.parse(localStorage.getItem('gantt_custom_names') || '{}');
+                    var displayName = customNames[epic.id] || epicName;
                     
                     leftHTML += '<div class="epic-row">';
-                    leftHTML += '<div class="epic-name">' + epicName + '</div>';
+                    leftHTML += '<div class="epic-name" data-epic-id="' + epic.id + '" onclick="makeEditable(this)">' + displayName + '</div>';
                     leftHTML += '<div class="progress-circle-container">';
                     leftHTML += '<div class="progress-circle">';
                     leftHTML += '<svg width="36" height="36">';
@@ -715,16 +757,24 @@
                     var leftPercent = (startOffset / totalDays) * 100;
                     var widthPercent = (width / totalDays) * 100;
                     
-                    // Remove JIRA key from epic name
-                    var epicName = epic.text.replace(/^[A-Z]+-\d+\s*/, '');
-                    var progress = Math.round(epic.progress * 100);
+                    // Clean epic name: remove JIRA key, bracketed tags, dashes, and leading ': '
+                    var epicName = epic.text
+                        .replace(/^[A-Z]+-\d+\s*/, '')     // Remove JIRA key
+                        .replace(/^\[.*?\]\s*/, '')        // Remove bracketed tags like [XYZ]
+                        .replace(/^[-:]\s*/, '')           // Remove leading dash or colon
+                        .trim();                           // Remove any extra whitespace
                     
+                    // Check for custom name in localStorage
+                    var customNames = JSON.parse(localStorage.getItem('gantt_custom_names') || '{}');
+                    var displayName = customNames[epic.id] || epicName;
+                    
+                    var progress = Math.round(epic.progress * 100);
                     var pillColor = colorPalette[resource.colorIndex];
                     
                     rightHTML += '<div class="timeline-row">';
                     rightHTML += '<div class="epic-pill" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%; background: ' + pillColor + ';">';
                     rightHTML += '<div class="epic-pill-progress-bg" style="width: ' + progress + '%;"></div>';
-                    rightHTML += '<span class="epic-pill-name">' + epicName + '</span>';
+                    rightHTML += '<span class="epic-pill-name">' + displayName + '</span>';
                     rightHTML += '<span class="epic-pill-progress">' + progress + '%</span>';
                     rightHTML += '</div>';
                     rightHTML += '</div>';
@@ -761,6 +811,46 @@
                 console.error('Export failed:', error);
                 alert('Export failed: ' + error.message);
             });
+        }
+        
+        function makeEditable(element) {
+            if (element.getAttribute('contenteditable') === 'true') return;
+            
+            element.setAttribute('contenteditable', 'true');
+            element.focus();
+            
+            // Select all text
+            var range = document.createRange();
+            range.selectNodeContents(element);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            
+            // Save on blur or Enter key
+            var saveEdit = function() {
+                element.setAttribute('contenteditable', 'false');
+                var epicId = element.getAttribute('data-epic-id');
+                var newName = element.textContent.trim();
+                
+                // Save to localStorage
+                var customNames = JSON.parse(localStorage.getItem('gantt_custom_names') || '{}');
+                customNames[epicId] = newName;
+                localStorage.setItem('gantt_custom_names', JSON.stringify(customNames));
+                
+                // Update the timeline pill as well
+                renderCustomExport();
+            };
+            
+            element.addEventListener('blur', saveEdit, { once: true });
+            element.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    element.blur();
+                } else if (e.key === 'Escape') {
+                    element.setAttribute('contenteditable', 'false');
+                    renderCustomExport();
+                }
+            }, { once: true });
         }
     </script>
 </body>
