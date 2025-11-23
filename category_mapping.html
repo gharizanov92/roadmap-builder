@@ -2874,7 +2874,8 @@
                 start: jira.startDate,
                 end: jira.endDate,
                 progress: jira.progress || 0,
-                status: jira.status || 'To Do'
+                status: jira.status || 'To Do',
+                dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null
             }));
             
             // Send data to iframe
@@ -2956,7 +2957,8 @@
                 start: jira.startDate,
                 end: jira.endDate,
                 progress: jira.progress || 0,
-                status: jira.status || 'To Do'
+                status: jira.status || 'To Do',
+                dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null
             }));
             
             // Wait for iframe to load, then send data

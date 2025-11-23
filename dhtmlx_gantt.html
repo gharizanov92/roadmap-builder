@@ -289,6 +289,163 @@
             opacity: 0.6;
         }
         
+        .epic-actions {
+            display: flex;
+            gap: 8px;
+            margin-right: 12px;
+        }
+        
+        .epic-link-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+            color: #666;
+        }
+        
+        .epic-link-btn:hover {
+            background: #007aff;
+            color: white;
+        }
+        
+        .epic-link-btn.has-dependency {
+            background: #007aff;
+            color: white;
+        }
+        
+        /* Dependency Modal */
+        .dependency-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+        }
+        
+        .dependency-modal.active {
+            display: flex;
+        }
+        
+        .dependency-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 70vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .dependency-modal-header {
+            margin-bottom: 16px;
+        }
+        
+        .dependency-modal-header h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            color: #1a1a1a;
+        }
+        
+        .dependency-modal-header p {
+            margin: 0;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .dependency-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+        
+        .dependency-item {
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .dependency-item:hover {
+            background: #f8f9fa;
+            border-color: #007aff;
+        }
+        
+        .dependency-item.selected {
+            background: #e3f2fd;
+            border-color: #007aff;
+        }
+        
+        .dependency-item-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+        
+        .dependency-item-resource {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .dependency-modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .dependency-modal-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+        }
+        
+        .btn-cancel {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .btn-cancel:hover {
+            background: #d0d0d0;
+        }
+        
+        .btn-remove {
+            background: #ff3b30;
+            color: white;
+        }
+        
+        .btn-remove:hover {
+            background: #d32f2f;
+        }
+        
+        .btn-save {
+            background: #007aff;
+            color: white;
+        }
+        
+        .btn-save:hover {
+            background: #0051d5;
+        }
+        
         .timeline-header-wrapper {
             border-bottom: 2px solid #e0e0e0;
             margin-bottom: 16px;
@@ -422,6 +579,24 @@
             background: rgba(0, 122, 255, 0.1);
         }
         
+        .dependency-arrow {
+            position: absolute;
+            pointer-events: none;
+            z-index: 8;
+        }
+        
+        .dependency-arrow path {
+            fill: none;
+            stroke: #666;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .dependency-arrow-head {
+            fill: #666;
+        }
+        
         .epic-pill-progress-bg {
             position: absolute;
             left: 0;
@@ -489,6 +664,22 @@
             <div class="export-container" id="exportContainer">
                 <div class="export-left" id="exportLeft"></div>
                 <div class="export-right" id="exportRight"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dependency Modal -->
+    <div id="dependencyModal" class="dependency-modal">
+        <div class="dependency-modal-content">
+            <div class="dependency-modal-header">
+                <h3>Link Epic</h3>
+                <p>Select an epic that this one depends on</p>
+            </div>
+            <div class="dependency-list" id="dependencyList"></div>
+            <div class="dependency-modal-actions">
+                <button class="btn-cancel" onclick="closeDependencyModal()">Cancel</button>
+                <button class="btn-remove" id="removeDependencyBtn" onclick="removeDependencyLink()" style="display: none;">Remove Link</button>
+                <button class="btn-save" onclick="saveDependencyLink()">Save</button>
             </div>
         </div>
     </div>
@@ -570,7 +761,8 @@
                     start_date: item.start,
                     duration: duration,
                     progress: item.progress / 100,
-                    parent: resourceMap[resource]
+                    parent: resourceMap[resource],
+                    dependency: item.dependency !== undefined ? item.dependency : null
                 });
             });
             
@@ -840,19 +1032,39 @@
             
             if (sprintConfig) {
                 var sprintStartDate = new Date(sprintConfig.startDate);
+                sprintStartDate.setHours(0, 0, 0, 0); // Normalize to midnight
                 sprintDuration = sprintConfig.calendarDuration || sprintConfig.duration || 14;
                 twoSprintDays = sprintDuration * 2;
                 var currentSprintNum = sprintConfig.currentSprint;
                 
+                console.log('Sprint Config:', {
+                    configuredSprint: currentSprintNum,
+                    configuredStartDate: sprintStartDate.toISOString().split('T')[0],
+                    sprintDuration: sprintDuration,
+                    minDate: minDate.toISOString().split('T')[0],
+                    maxDate: maxDate.toISOString().split('T')[0]
+                });
+                
                 // Calculate which sprint minDate falls into
                 var daysDiff = Math.floor((minDate - sprintStartDate) / (1000 * 60 * 60 * 24));
                 var sprintOffset = Math.floor(daysDiff / sprintDuration);
+                
+                console.log('Day difference:', daysDiff, 'Sprint offset:', sprintOffset);
+                
                 var firstSprintNum = currentSprintNum + sprintOffset;
                 
-                // Generate all sprints covering the date range
+                // Calculate the start date of the first sprint to display
                 var sprintDate = new Date(sprintStartDate);
                 sprintDate.setDate(sprintDate.getDate() + (sprintOffset * sprintDuration));
                 var sprintNum = firstSprintNum;
+                
+                // Ensure we start at or before minDate
+                while (sprintDate > minDate) {
+                    sprintDate.setDate(sprintDate.getDate() - sprintDuration);
+                    sprintNum--;
+                }
+                
+                console.log('First sprint:', sprintNum, 'starts on:', sprintDate.toISOString().split('T')[0]);
                 
                 while (sprintDate < maxDate) {
                     sprints.push({
@@ -861,6 +1073,7 @@
                         label: 'Sprint ' + sprintNum,
                         workingDays: sprintConfig.workingDuration || getWorkingDays(sprintDuration)
                     });
+                    console.log('Added Sprint', sprintNum, 'starting:', sprintDate.toISOString().split('T')[0]);
                     sprintDate.setDate(sprintDate.getDate() + sprintDuration);
                     sprintNum++;
                 }
@@ -912,8 +1125,13 @@
                     var customNames = JSON.parse(localStorage.getItem('gantt_custom_names') || '{}');
                     var displayName = customNames[epic.id] || epicName;
                     
+                    var hasDependency = epic.dependency !== null && epic.dependency !== undefined;
+                    
                     leftHTML += '<div class="epic-row" draggable="true" data-epic-id="' + epic.id + '" data-resource-id="' + resId + '">';
                     leftHTML += '<div class="epic-name" data-epic-id="' + epic.id + '" onclick="makeEditable(this)">' + displayName + '</div>';
+                    leftHTML += '<div class="epic-actions">';
+                    leftHTML += '<button class="epic-link-btn' + (hasDependency ? ' has-dependency' : '') + '" onclick="openDependencyModal(' + epic.id + ')" title="Link to another epic">🔗</button>';
+                    leftHTML += '</div>';
                     leftHTML += '<div class="progress-circle-container">';
                     leftHTML += '<div class="progress-circle">';
                     leftHTML += '<svg width="36" height="36">';
@@ -1043,6 +1261,134 @@
             
             // Setup resize handles for epic pills
             setupResizeHandles(minDate, totalDays, sprintConfig);
+            
+            // Render dependency arrows
+            renderDependencyArrows();
+        }
+        
+        function renderDependencyArrows() {
+            // Remove existing arrows
+            document.querySelectorAll('.dependency-arrow').forEach(function(arrow) {
+                arrow.remove();
+            });
+            
+            var timelineBody = document.querySelector('.timeline-body');
+            if (!timelineBody) return;
+            
+            // Get all epic pills
+            var pills = document.querySelectorAll('.epic-pill');
+            var pillMap = {};
+            
+            pills.forEach(function(pill) {
+                var epicId = pill.getAttribute('data-epic-id');
+                pillMap[epicId] = pill;
+            });
+            
+            // Get dependencies from gantt data
+            gantt.eachTask(function(task) {
+                if (task.type !== 'project' && task.dependency !== null && task.dependency !== undefined) {
+                    // Find the source and target pills
+                    var targetPill = pillMap[task.id];
+                    
+                    // Find source task by dependency index
+                    var sourceTask = null;
+                    var taskIndex = 0;
+                    gantt.eachTask(function(t) {
+                        if (t.type !== 'project') {
+                            if (taskIndex === task.dependency) {
+                                sourceTask = t;
+                            }
+                            taskIndex++;
+                        }
+                    });
+                    
+                    if (sourceTask && targetPill) {
+                        var sourcePill = pillMap[sourceTask.id];
+                        if (sourcePill) {
+                            drawArrow(sourcePill, targetPill, timelineBody);
+                        }
+                    }
+                }
+            });
+        }
+        
+        function drawArrow(sourcePill, targetPill, container) {
+            var sourceRect = sourcePill.getBoundingClientRect();
+            var targetRect = targetPill.getBoundingClientRect();
+            var containerRect = container.getBoundingClientRect();
+            
+            // Calculate positions relative to container
+            var startX = sourceRect.right - containerRect.left;
+            var startY = sourceRect.top + sourceRect.height / 2 - containerRect.top;
+            var endX = targetRect.left - containerRect.left;
+            var endY = targetRect.top + targetRect.height / 2 - containerRect.top;
+            
+            // Create SVG element
+            var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.classList.add('dependency-arrow');
+            
+            var minX = Math.min(startX, endX) - 10;
+            var minY = Math.min(startY, endY) - 10;
+            var maxX = Math.max(startX, endX) + 10;
+            var maxY = Math.max(startY, endY) + 10;
+            
+            svg.style.left = minX + 'px';
+            svg.style.top = minY + 'px';
+            svg.style.width = (maxX - minX) + 'px';
+            svg.style.height = (maxY - minY) + 'px';
+            svg.setAttribute('viewBox', '0 0 ' + (maxX - minX) + ' ' + (maxY - minY));
+            
+            // Adjust coordinates to SVG space
+            startX -= minX;
+            startY -= minY;
+            endX -= minX;
+            endY -= minY;
+            
+            // Create path with rounded 90-degree turns
+            var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            var midX = startX + (endX - startX) / 2;
+            var radius = 8;
+            
+            var pathData = 'M ' + startX + ' ' + startY;
+            
+            if (endY === startY) {
+                // Straight horizontal line
+                pathData += ' L ' + (endX - 8) + ' ' + endY;
+            } else if (endX > startX) {
+                // Target is to the right
+                if (Math.abs(endY - startY) < radius * 2) {
+                    // Small vertical difference, use simple path
+                    pathData += ' L ' + midX + ' ' + startY;
+                    pathData += ' L ' + midX + ' ' + endY;
+                    pathData += ' L ' + (endX - 8) + ' ' + endY;
+                } else {
+                    // Use rounded corners
+                    pathData += ' L ' + (midX - radius) + ' ' + startY;
+                    pathData += ' Q ' + midX + ' ' + startY + ' ' + midX + ' ' + (startY + (endY > startY ? radius : -radius));
+                    pathData += ' L ' + midX + ' ' + (endY - (endY > startY ? radius : -radius));
+                    pathData += ' Q ' + midX + ' ' + endY + ' ' + (midX + radius) + ' ' + endY;
+                    pathData += ' L ' + (endX - 8) + ' ' + endY;
+                }
+            } else {
+                // Target is to the left (dependency goes backwards)
+                var offset = 20;
+                pathData += ' L ' + (startX + offset) + ' ' + startY;
+                pathData += ' Q ' + (startX + offset + radius) + ' ' + startY + ' ' + (startX + offset + radius) + ' ' + (startY + (endY > startY ? radius : -radius));
+                pathData += ' L ' + (startX + offset + radius) + ' ' + (endY - (endY > startY ? radius : -radius));
+                pathData += ' Q ' + (startX + offset + radius) + ' ' + endY + ' ' + (startX + offset) + ' ' + endY;
+                pathData += ' L ' + (endX - 8) + ' ' + endY;
+            }
+            
+            path.setAttribute('d', pathData);
+            svg.appendChild(path);
+            
+            // Add arrowhead
+            var arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            arrowHead.classList.add('dependency-arrow-head');
+            arrowHead.setAttribute('points', (endX - 8) + ',' + (endY - 4) + ' ' + endX + ',' + endY + ' ' + (endX - 8) + ',' + (endY + 4));
+            svg.appendChild(arrowHead);
+            
+            container.appendChild(svg);
         }
         
         function downloadCustomExport() {
@@ -1284,6 +1630,111 @@
                 
                 currentPill = null;
             });
+        }
+        
+        var currentDependencyEpicId = null;
+        var selectedDependencyIndex = null;
+        
+        function openDependencyModal(epicId) {
+            currentDependencyEpicId = epicId;
+            selectedDependencyIndex = null;
+            
+            var modal = document.getElementById('dependencyModal');
+            var list = document.getElementById('dependencyList');
+            var removeBtn = document.getElementById('removeDependencyBtn');
+            
+            // Get current epic
+            var currentTask = gantt.getTask(epicId);
+            var currentDependency = currentTask.dependency;
+            
+            // Show/hide remove button
+            if (currentDependency !== null && currentDependency !== undefined) {
+                removeBtn.style.display = 'block';
+                selectedDependencyIndex = currentDependency;
+            } else {
+                removeBtn.style.display = 'none';
+            }
+            
+            // Build list of available epics
+            list.innerHTML = '';
+            var epicIndex = 0;
+            gantt.eachTask(function(task) {
+                if (task.type !== 'project' && task.id !== epicId) {
+                    var parentTask = gantt.getTask(task.parent);
+                    var isSelected = epicIndex === currentDependency;
+                    
+                    var item = document.createElement('div');
+                    item.className = 'dependency-item' + (isSelected ? ' selected' : '');
+                    item.setAttribute('data-index', epicIndex);
+                    item.onclick = function() {
+                        selectDependency(epicIndex);
+                    };
+                    
+                    item.innerHTML = '<div class="dependency-item-title">' + task.text + '</div>' +
+                                   '<div class="dependency-item-resource">' + parentTask.text + '</div>';
+                    
+                    list.appendChild(item);
+                    epicIndex++;
+                }
+            });
+            
+            modal.classList.add('active');
+        }
+        
+        function closeDependencyModal() {
+            var modal = document.getElementById('dependencyModal');
+            modal.classList.remove('active');
+            currentDependencyEpicId = null;
+            selectedDependencyIndex = null;
+        }
+        
+        function selectDependency(index) {
+            selectedDependencyIndex = index;
+            
+            // Update UI
+            document.querySelectorAll('.dependency-item').forEach(function(item) {
+                if (parseInt(item.getAttribute('data-index')) === index) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+        
+        function saveDependencyLink() {
+            if (currentDependencyEpicId !== null && selectedDependencyIndex !== null) {
+                var task = gantt.getTask(currentDependencyEpicId);
+                task.dependency = selectedDependencyIndex;
+                gantt.updateTask(currentDependencyEpicId);
+                
+                // Notify parent window to update the issues page
+                window.parent.postMessage({
+                    type: 'updateEpicDependency',
+                    epicId: currentDependencyEpicId,
+                    dependency: selectedDependencyIndex
+                }, '*');
+                
+                closeDependencyModal();
+                renderCustomExport();
+            }
+        }
+        
+        function removeDependencyLink() {
+            if (currentDependencyEpicId !== null) {
+                var task = gantt.getTask(currentDependencyEpicId);
+                task.dependency = null;
+                gantt.updateTask(currentDependencyEpicId);
+                
+                // Notify parent window to update the issues page
+                window.parent.postMessage({
+                    type: 'updateEpicDependency',
+                    epicId: currentDependencyEpicId,
+                    dependency: null
+                }, '*');
+                
+                closeDependencyModal();
+                renderCustomExport();
+            }
         }
         
         function makeEditable(element) {
