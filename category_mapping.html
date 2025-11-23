@@ -2688,106 +2688,54 @@
             const chartDiv = document.getElementById('chartdiv');
             chartDiv.innerHTML = '';
             
-            // Check if amCharts is loaded
-            if (!amChartsLoaded) {
-                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(0,0,0,0.5);font-size:16px;">Loading chart library...</div>';
-                loadAmCharts(renderGanttChart);
-                return;
-            }
+            // Use enhanced timeline view directly (amCharts gantt has persistent module issues)
+            // Skip amCharts loading and use our custom timeline
             
-            // Filter selected issues with dates
-            const selectedIssues = mappedJiras.filter(jira => 
-                jira.selected && jira.startDate && jira.endDate && jira.category
+            // Filter selected issues with categories
+            let selectedIssues = mappedJiras.filter(jira => 
+                jira.selected && jira.category
             );
             
             if (selectedIssues.length === 0) {
-                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(0,0,0,0.5);font-size:16px;">No issues with dates and categories selected. Please add start/end dates and categories to issues.</div>';
+                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(0,0,0,0.5);font-size:16px;">No issues with categories selected. Please assign categories to issues.</div>';
                 return;
             }
             
-            // Dispose existing chart
-            if (ganttRoot) {
-                ganttRoot.dispose();
-                ganttRoot = null;
-            }
+            // Apply smart date defaults
+            const today = new Date().toISOString().split('T')[0];
+            const threeDaysLater = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
             
-            // Double-check am5 is available
-            if (typeof am5 === 'undefined') {
-                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,59,48,0.8);font-size:16px;">Error: Chart library failed to load. Please refresh the page.</div>';
-                return;
-            }
-            
-            // Create root
-            am5.ready(function() {
-                // Verify am5gantt is available
-                if (typeof am5gantt === 'undefined') {
-                    console.error('am5gantt is undefined, rendering fallback timeline');
-                    renderFallbackTimeline(selectedIssues, chartDiv);
-                    return;
+            selectedIssues = selectedIssues.map(jira => {
+                const issue = {...jira};
+                
+                // Both dates blank: today to today + 3 days
+                if (!issue.startDate && !issue.endDate) {
+                    issue.startDate = today;
+                    issue.endDate = threeDaysLater;
+                }
+                // Start date blank: default to today
+                else if (!issue.startDate && issue.endDate) {
+                    issue.startDate = today;
+                }
+                // End date blank: default to start date + 3 days
+                else if (issue.startDate && !issue.endDate) {
+                    const startMs = new Date(issue.startDate).getTime();
+                    const endMs = startMs + (3 * 24 * 60 * 60 * 1000);
+                    issue.endDate = new Date(endMs).toISOString().split('T')[0];
                 }
                 
-                try {
-                    ganttRoot = am5.Root.new("chartdiv");
-                    ganttRoot.setThemes([am5themes_Animated.new(ganttRoot)]);
-                    
-                    // Create Gantt chart
-                    var gantt = ganttRoot.container.children.push(am5gantt.Gantt.new(ganttRoot, {}));
-                
-                // Transform data
-                var categoryData = [];
-                var seriesData = [];
-                var resourceToId = new Map();
-                var resourceIndex = 1;
-                
-                selectedIssues.forEach(function(jira, idx) {
-                    var resourceName = jira.category || "Unassigned";
-                    var resourceId = resourceToId.get(resourceName);
-                    
-                    if (!resourceId) {
-                        resourceId = "res_" + resourceIndex++;
-                        resourceToId.set(resourceName, resourceId);
-                        categoryData.push({
-                            name: resourceName,
-                            id: resourceId
-                        });
-                    }
-                    
-                    var taskId = jira.issueKey || ("task_" + idx);
-                    categoryData.push({
-                        name: jira.summary || jira.issueKey,
-                        id: taskId,
-                        parentId: resourceId
-                    });
-                    
-                    var startMs = new Date(jira.startDate).getTime();
-                    var endMs = new Date(jira.endDate).getTime();
-                    var oneDay = 24 * 60 * 60 * 1000;
-                    var durationDays = Math.max(1, Math.round((endMs - startMs) / oneDay));
-                    
-                    seriesData.push({
-                        category: taskId,
-                        start: startMs,
-                        duration: durationDays,
-                        progress: 0,
-                        id: taskId,
-                        status: jira.status || "Planned"
-                    });
-                });
-                
-                    gantt.yAxis.data.setAll(categoryData);
-                    gantt.series.data.setAll(seriesData);
-                    gantt.appear();
-                } catch (error) {
-                    console.error('Error creating Gantt chart:', error);
-                    renderFallbackTimeline(selectedIssues, chartDiv);
-                }
+                return issue;
             });
+            
+            // Render enhanced timeline view
+            renderFallbackTimeline(selectedIssues, chartDiv);
         }
 
         function renderFallbackTimeline(issues, container) {
-            // Simple HTML/CSS timeline as fallback
+            // Enhanced HTML/CSS timeline
             const resourceGroups = {};
             
+            // Group by resource and sort by start date
             issues.forEach(jira => {
                 const resource = jira.category || 'Unassigned';
                 if (!resourceGroups[resource]) {
@@ -2796,25 +2744,56 @@
                 resourceGroups[resource].push(jira);
             });
             
-            let html = '<div style="padding:20px;background:white;border-radius:12px;overflow-y:auto;height:100%;">';
-            html += '<h3 style="margin-bottom:20px;color:#1d1d1f;">Project Timeline</h3>';
+            // Sort issues within each resource by start date
+            Object.keys(resourceGroups).forEach(resource => {
+                resourceGroups[resource].sort((a, b) => 
+                    new Date(a.startDate) - new Date(b.startDate)
+                );
+            });
+            
+            let html = '<div style="padding:24px;background:white;border-radius:12px;overflow-y:auto;height:100%;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">';
+            html += '<h3 style="margin:0;color:#1d1d1f;font-size:20px;">Resource Timeline</h3>';
+            html += `<div style="font-size:13px;color:rgba(0,0,0,0.5);">${issues.length} tasks across ${Object.keys(resourceGroups).length} resources</div>`;
+            html += '</div>';
             
             Object.keys(resourceGroups).sort().forEach(resource => {
-                html += `<div style="margin-bottom:24px;">`;
-                html += `<h4 style="color:#007aff;margin-bottom:12px;font-size:16px;">${escapeHtml(resource)}</h4>`;
+                const tasks = resourceGroups[resource];
+                const totalDays = tasks.reduce((sum, jira) => {
+                    return sum + Math.ceil((new Date(jira.endDate) - new Date(jira.startDate)) / (1000 * 60 * 60 * 24));
+                }, 0);
                 
-                resourceGroups[resource].forEach(jira => {
+                html += `<div style="margin-bottom:32px;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:16px;background:rgba(248,249,250,0.5);">`;
+                html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">`;
+                html += `<h4 style="color:#007aff;margin:0;font-size:16px;font-weight:600;">${escapeHtml(resource)}</h4>`;
+                html += `<span style="font-size:12px;color:rgba(0,0,0,0.5);">${tasks.length} tasks • ${totalDays} total days</span>`;
+                html += `</div>`;
+                
+                tasks.forEach(jira => {
                     const startDate = new Date(jira.startDate).toLocaleDateString();
                     const endDate = new Date(jira.endDate).toLocaleDateString();
                     const duration = Math.ceil((new Date(jira.endDate) - new Date(jira.startDate)) / (1000 * 60 * 60 * 24));
                     
-                    html += `<div style="background:rgba(0,122,255,0.08);padding:12px;border-radius:8px;margin-bottom:8px;border-left:4px solid #007aff;">`;
-                    html += `<div style="font-weight:600;margin-bottom:4px;">${escapeHtml(jira.issueKey)} - ${escapeHtml(jira.summary)}</div>`;
-                    html += `<div style="font-size:12px;color:rgba(0,0,0,0.6);">`;
-                    html += `<span>${startDate}</span> → <span>${endDate}</span> `;
-                    html += `<span style="margin-left:12px;">(${duration} days)</span>`;
-                    if (jira.status) html += ` <span style="margin-left:12px;">Status: ${escapeHtml(jira.status)}</span>`;
-                    html += `</div></div>`;
+                    // Status color
+                    let statusColor = '#8e8e93';
+                    const status = (jira.status || '').toLowerCase();
+                    if (status.includes('done') || status.includes('closed')) statusColor = '#34c759';
+                    else if (status.includes('progress')) statusColor = '#007aff';
+                    else if (status.includes('blocked')) statusColor = '#ff3b30';
+                    
+                    html += `<div style="background:white;padding:14px;border-radius:10px;margin-bottom:10px;border-left:4px solid ${statusColor};box-shadow:0 1px 3px rgba(0,0,0,0.05);">`;
+                    html += `<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">`;
+                    html += `<div style="flex:1;">`;
+                    html += `<div style="font-weight:600;font-size:14px;color:#1d1d1f;margin-bottom:4px;">`;
+                    html += `<span style="color:#007aff;">${escapeHtml(jira.issueKey)}</span> ${escapeHtml(jira.summary)}`;
+                    html += `</div>`;
+                    html += `<div style="font-size:12px;color:rgba(0,0,0,0.6);display:flex;gap:16px;flex-wrap:wrap;">`;
+                    html += `<span><i class="fas fa-calendar" style="margin-right:4px;"></i>${startDate} → ${endDate}</span>`;
+                    html += `<span><i class="fas fa-clock" style="margin-right:4px;"></i>${duration} days</span>`;
+                    if (jira.status) html += `<span><i class="fas fa-circle" style="margin-right:4px;color:${statusColor};"></i>${escapeHtml(jira.status)}</span>`;
+                    if (jira.assignee) html += `<span><i class="fas fa-user" style="margin-right:4px;"></i>${escapeHtml(jira.assignee)}</span>`;
+                    if (jira.storyPoints) html += `<span><i class="fas fa-chart-simple" style="margin-right:4px;"></i>${escapeHtml(jira.storyPoints)} SP</span>`;
+                    html += `</div></div></div></div>`;
                 });
                 
                 html += `</div>`;
