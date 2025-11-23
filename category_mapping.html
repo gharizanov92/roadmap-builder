@@ -280,20 +280,84 @@
             margin: 0;
         }
 
+        .filter-form {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .filter-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         .filter-input {
             width: 100%;
-            padding: 4px 8px;
+            padding: 6px 10px;
             border: 1px solid rgba(0, 0, 0, 0.1);
-            border-radius: 6px;
-            font-size: 12px;
+            border-radius: 8px;
+            font-size: 13px;
             background: rgba(255, 255, 255, 0.9);
-            margin-top: 4px;
+            transition: all 0.2s ease;
         }
 
         .filter-input:focus {
             outline: none;
             border-color: rgba(0, 0, 0, 0.2);
             box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-actions-left {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .filter-actions-right {
+            display: flex;
+            gap: 10px;
         }
 
         .detail-row {
@@ -1023,17 +1087,62 @@
         </div>
 
         <div class="section">
-            <div class="section-header">
-                <div class="header-actions">
-                    <div class="file-input-wrapper">
-                        <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
-                        <label for="csvFile" class="file-input-label">
-                            <i class="fas fa-upload"></i> Import CSV
-                        </label>
+            <div class="filter-form">
+                <div class="filter-grid">
+                    <div class="filter-field">
+                        <label class="filter-label">Summary</label>
+                        <input type="text" class="filter-input" id="filterSummary" placeholder="Search summary..." oninput="applyFilters()">
                     </div>
-                    <button onclick="saveSelectedAsJSON()"><i class="fas fa-save"></i> Save as JSON</button>
-                    <button class="success" onclick="archiveData()"><i class="fas fa-archive"></i> Archive</button>
-                    <button class="danger" onclick="clearData()"><i class="fas fa-trash"></i> Clear</button>
+                    <div class="filter-field">
+                        <label class="filter-label">Issue Key</label>
+                        <input type="text" class="filter-input" id="filterIssueKey" placeholder="Search issue key..." oninput="applyFilters()">
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Issue Type</label>
+                        <select class="filter-select" id="filterIssueType" onchange="applyFilters()">
+                            <option value="">All Types</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Category</label>
+                        <select class="filter-select" id="filterCategory" onchange="applyFilters()">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Priority</label>
+                        <select class="filter-select" id="filterPriority" onchange="applyFilters()">
+                            <option value="">All Priorities</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Status</label>
+                        <select class="filter-select" id="filterStatus" onchange="applyFilters()">
+                            <option value="">All Statuses</option>
+                        </select>
+                    </div>
+                    <div class="filter-field">
+                        <label class="filter-label">Assignee</label>
+                        <select class="filter-select" id="filterAssignee" onchange="applyFilters()">
+                            <option value="">All Assignees</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <div class="filter-actions-left">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
+                            <label for="csvFile" class="file-input-label">
+                                <i class="fas fa-upload"></i> Import CSV
+                            </label>
+                        </div>
+                        <button onclick="clearFilters()"><i class="fas fa-filter-circle-xmark"></i> Clear Filters</button>
+                    </div>
+                    <div class="filter-actions-right">
+                        <button onclick="saveSelectedAsJSON()"><i class="fas fa-save"></i> Save as JSON</button>
+                        <button class="success" onclick="archiveData()"><i class="fas fa-archive"></i> Archive</button>
+                        <button class="danger" onclick="clearData()"><i class="fas fa-trash"></i> Clear</button>
+                    </div>
                 </div>
             </div>
             <div class="grid-container">
@@ -1046,14 +1155,6 @@
                             <th>Assignee</th>
                             <th>Start Date</th>
                             <th>End Date</th>
-                        </tr>
-                        <tr id="filterRow">
-                            <th class="checkbox-cell"></th>
-                            <th class="pinned"><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
-                            <th class="pinned"><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
-                            <th><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
-                            <th><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
-                            <th><input type="text" class="filter-input" placeholder="Filter..." onkeyup="filterTable()"></th>
                         </tr>
                     </thead>
                     <tbody id="dataGridBody">
@@ -1784,6 +1885,9 @@
                     }
                 });
             });
+
+            // Populate filter dropdowns
+            populateFilterDropdowns();
         }
 
         function getPriorityClass(priority) {
@@ -2000,34 +2104,133 @@
             selectAll.indeterminate = !allChecked && !noneChecked;
         }
 
-        function filterTable() {
-            const filters = Array.from(document.querySelectorAll('.filter-input')).map(input => input.value.toLowerCase());
+        function populateFilterDropdowns() {
+            // Get unique values
+            const issueTypes = new Set();
+            const priorities = new Set();
+            const statuses = new Set();
+            
+            mappedJiras.forEach(jira => {
+                if (jira.issueType) issueTypes.add(jira.issueType);
+                if (jira.priority) priorities.add(jira.priority);
+                if (jira.status) statuses.add(jira.status);
+            });
+            
+            // Populate Issue Type
+            const issueTypeSelect = document.getElementById('filterIssueType');
+            issueTypeSelect.innerHTML = '<option value="">All Types</option>';
+            Array.from(issueTypes).sort().forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                issueTypeSelect.appendChild(option);
+            });
+            
+            // Populate Priority
+            const prioritySelect = document.getElementById('filterPriority');
+            prioritySelect.innerHTML = '<option value="">All Priorities</option>';
+            Array.from(priorities).sort().forEach(priority => {
+                const option = document.createElement('option');
+                option.value = priority;
+                option.textContent = priority;
+                prioritySelect.appendChild(option);
+            });
+            
+            // Populate Status
+            const statusSelect = document.getElementById('filterStatus');
+            statusSelect.innerHTML = '<option value="">All Statuses</option>';
+            Array.from(statuses).sort().forEach(status => {
+                const option = document.createElement('option');
+                option.value = status;
+                option.textContent = status;
+                statusSelect.appendChild(option);
+            });
+            
+            // Populate Category (from existing categories set)
+            const categorySelect = document.getElementById('filterCategory');
+            categorySelect.innerHTML = '<option value="">All Categories</option>';
+            Array.from(categories).sort().forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+            
+            // Populate Assignee (from existing assignees set)
+            const assigneeSelect = document.getElementById('filterAssignee');
+            assigneeSelect.innerHTML = '<option value="">All Assignees</option>';
+            Array.from(assignees).sort().forEach(assignee => {
+                const option = document.createElement('option');
+                option.value = assignee;
+                option.textContent = assignee;
+                assigneeSelect.appendChild(option);
+            });
+        }
+
+        function applyFilters() {
+            const filters = {
+                summary: document.getElementById('filterSummary').value.toLowerCase(),
+                issueKey: document.getElementById('filterIssueKey').value.toLowerCase(),
+                issueType: document.getElementById('filterIssueType').value,
+                category: document.getElementById('filterCategory').value,
+                priority: document.getElementById('filterPriority').value,
+                status: document.getElementById('filterStatus').value,
+                assignee: document.getElementById('filterAssignee').value
+            };
+            
             const rows = document.querySelectorAll('#dataGridBody tr:not(.detail-row)');
             
             rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
+                const rowIndex = row.querySelector('.row-checkbox')?.dataset.index;
+                if (rowIndex === undefined) return;
+                
+                const jira = mappedJiras[rowIndex];
+                if (!jira) return;
+                
                 let show = true;
                 
-                filters.forEach((filter, idx) => {
-                    if (filter && cells[idx + 1]) { // +1 to skip checkbox column
-                        const cellText = cells[idx + 1].textContent.toLowerCase();
-                        if (!cellText.includes(filter)) {
-                            show = false;
-                        }
-                    }
-                });
+                // Apply filters
+                if (filters.summary && !jira.summary.toLowerCase().includes(filters.summary)) {
+                    show = false;
+                }
+                if (filters.issueKey && !jira.issueKey.toLowerCase().includes(filters.issueKey)) {
+                    show = false;
+                }
+                if (filters.issueType && jira.issueType !== filters.issueType) {
+                    show = false;
+                }
+                if (filters.category && jira.category !== filters.category) {
+                    show = false;
+                }
+                if (filters.priority && jira.priority !== filters.priority) {
+                    show = false;
+                }
+                if (filters.status && jira.status !== filters.status) {
+                    show = false;
+                }
+                if (filters.assignee && jira.assignee !== filters.assignee) {
+                    show = false;
+                }
                 
                 row.style.display = show ? '' : 'none';
                 
                 // Also hide/show detail row
-                const rowIndex = row.querySelector('.row-checkbox')?.dataset.index;
-                if (rowIndex) {
-                    const detailRow = document.getElementById(`detail-${rowIndex}`);
-                    if (detailRow) {
-                        detailRow.style.display = show ? '' : 'none';
-                    }
+                const detailRow = document.getElementById(`detail-${rowIndex}`);
+                if (detailRow) {
+                    detailRow.style.display = show ? '' : 'none';
                 }
             });
+        }
+
+        function clearFilters() {
+            document.getElementById('filterSummary').value = '';
+            document.getElementById('filterIssueKey').value = '';
+            document.getElementById('filterIssueType').value = '';
+            document.getElementById('filterCategory').value = '';
+            document.getElementById('filterPriority').value = '';
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('filterAssignee').value = '';
+            applyFilters();
         }
 
         function saveSelectedAsJSON() {
