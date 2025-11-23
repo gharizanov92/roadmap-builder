@@ -17,7 +17,7 @@
             height: 50px;
             background: rgba(255, 255, 255, 0.95);
             border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-            display: flex;
+            display: none;
             align-items: center;
             padding: 0 20px;
             gap: 12px;
@@ -54,7 +54,7 @@
             height: 100%;
             background: white;
             z-index: 10000;
-            display: none;
+            display: flex;
             flex-direction: column;
         }
         
@@ -172,7 +172,7 @@
             text-align: center;
         }
         
-        .grid-col-duration {
+        .grid-col-estimate {
             width: 100px;
             flex-shrink: 0;
             font-size: 12px;
@@ -675,6 +675,7 @@
         #gantt_here {
             width: 100%;
             height: calc(100% - 50px);
+            display: none;
         }
     </style>
 </head>
@@ -695,7 +696,6 @@
             <div class="export-actions">
                 <button class="btn-close" onclick="refreshCustomExport()">🔄 Refresh</button>
                 <button class="btn-close" onclick="reconfigureSprints()">⚙️ Configure Sprints</button>
-                <button class="btn-close" onclick="closeCustomExport()">Close</button>
                 <button class="btn-download" onclick="downloadCustomExport()">Download as PNG</button>
             </div>
         </div>
@@ -768,6 +768,10 @@
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'updateGantt' && event.data.data) {
                 updateGanttData(event.data.data);
+                // Automatically open custom export view when data is loaded
+                setTimeout(function() {
+                    openCustomExport();
+                }, 100);
             }
         });
         
@@ -1178,7 +1182,7 @@
             var leftHTML = '<div class="grid-header">';
             leftHTML += '<div class="grid-col-task">Task</div>';
             leftHTML += '<div class="grid-col-progress">Progress</div>';
-            leftHTML += '<div class="grid-col-duration">Duration</div>';
+            leftHTML += '<div class="grid-col-estimate">Estimate</div>';
             leftHTML += '</div>';
             
             for (var resId in resources) {
@@ -1647,7 +1651,6 @@
         
         function reconfigureSprints() {
             localStorage.removeItem('sprint_config');
-            closeCustomExport();
             openCustomExport();
         }
         
