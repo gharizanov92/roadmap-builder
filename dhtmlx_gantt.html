@@ -136,6 +136,13 @@
             flex: 1;
             padding-left: 24px;
             position: relative;
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+        
+        .timeline-wrapper {
+            position: relative;
+            min-width: 100%;
         }
         
         .grid-header {
@@ -282,15 +289,13 @@
             opacity: 0.6;
         }
         
-        .timeline-header {
-            display: flex;
-            padding: 12px 0;
+        .timeline-header-wrapper {
             border-bottom: 2px solid #e0e0e0;
             margin-bottom: 16px;
         }
         
         .timeline-month {
-            flex: 1;
+            position: absolute;
             text-align: center;
             font-size: 12px;
             font-weight: 700;
@@ -298,10 +303,18 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border-right: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .timeline-month:last-child {
             border-right: none;
+        }
+        
+        .timeline-header {
+            position: relative;
+            height: 40px;
         }
         
         .timeline-body {
@@ -375,6 +388,38 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             overflow: hidden;
             z-index: 10;
+            cursor: move;
+            transition: box-shadow 0.2s;
+        }
+        
+        .epic-pill:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+        
+        .epic-pill.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        
+        .epic-pill .resize-handle {
+            position: absolute;
+            width: 8px;
+            height: 100%;
+            top: 0;
+            cursor: ew-resize;
+            z-index: 20;
+        }
+        
+        .epic-pill .resize-handle-left {
+            left: 0;
+        }
+        
+        .epic-pill .resize-handle-right {
+            right: 0;
+        }
+        
+        .epic-row.drag-over {
+            background: rgba(0, 122, 255, 0.1);
         }
         
         .epic-pill-progress-bg {
@@ -434,6 +479,7 @@
         <div class="export-header">
             <h2>Roadmap Export View</h2>
             <div class="export-actions">
+                <button class="btn-close" onclick="refreshCustomExport()">🔄 Refresh</button>
                 <button class="btn-close" onclick="reconfigureSprints()">⚙️ Configure Sprints</button>
                 <button class="btn-close" onclick="closeCustomExport()">Close</button>
                 <button class="btn-download" onclick="downloadCustomExport()">Download as PNG</button>
@@ -619,7 +665,38 @@
             URL.revokeObjectURL(url);
         }
         
+        // Helper function to calculate working days (excluding weekends)
+        function getWorkingDays(calendarDays) {
+            var weeks = Math.floor(calendarDays / 7);
+            var remainingDays = calendarDays % 7;
+            var workingDays = weeks * 5;
+            
+            // Add remaining working days (max 5 per week)
+            workingDays += Math.min(remainingDays, 5);
+            if (remainingDays > 5) {
+                workingDays += Math.max(0, remainingDays - 7);
+            }
+            
+            return workingDays;
+        }
+        
         function openCustomExport() {
+            // Check if all jiras have categories
+            var hasUncategorized = false;
+            gantt.eachTask(function(task) {
+                if (task.type !== 'project' && task.parent) {
+                    var parentTask = gantt.getTask(task.parent);
+                    if (parentTask && (parentTask.text === 'Unassigned' || !parentTask.text)) {
+                        hasUncategorized = true;
+                    }
+                }
+            });
+            
+            if (hasUncategorized) {
+                alert('Error: Not all issues have categories assigned. Please assign categories to all issues before opening the custom export view.');
+                return;
+            }
+            
             // Get sprint configuration from localStorage or prompt user
             var sprintConfig = JSON.parse(localStorage.getItem('sprint_config') || 'null');
             
@@ -630,13 +707,14 @@
                 var startDate = prompt('Enter the start date of Sprint ' + currentSprint + ' (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
                 if (!startDate) return;
                 
-                var duration = prompt('Enter sprint duration in days:', '14');
+                var duration = prompt('Enter sprint duration in calendar days (e.g., 14 for 2 weeks):', '14');
                 if (!duration) return;
                 
                 sprintConfig = {
                     currentSprint: parseInt(currentSprint),
                     startDate: startDate,
-                    duration: parseInt(duration)
+                    calendarDuration: parseInt(duration),
+                    workingDuration: getWorkingDays(parseInt(duration))
                 };
                 
                 localStorage.setItem('sprint_config', JSON.stringify(sprintConfig));
@@ -645,6 +723,10 @@
             var view = document.getElementById('customExportView');
             view.classList.add('active');
             renderCustomExport(sprintConfig);
+        }
+        
+        function refreshCustomExport() {
+            renderCustomExport();
         }
         
         function closeCustomExport() {
@@ -732,11 +814,34 @@
                 return;
             }
             
+            // Apply custom ordering from localStorage
+            var epicOrdering = JSON.parse(localStorage.getItem('epic_ordering') || '{}');
+            for (var resId in resources) {
+                if (epicOrdering[resId]) {
+                    var orderedEpics = [];
+                    epicOrdering[resId].forEach(function(epicId) {
+                        var epic = resources[resId].epics.find(function(e) { return e.id === epicId; });
+                        if (epic) orderedEpics.push(epic);
+                    });
+                    // Add any new epics not in the ordering
+                    resources[resId].epics.forEach(function(epic) {
+                        if (!orderedEpics.find(function(e) { return e.id === epic.id; })) {
+                            orderedEpics.push(epic);
+                        }
+                    });
+                    resources[resId].epics = orderedEpics;
+                }
+            }
+            
             // Generate sprints for timeline
             var sprints = [];
+            var sprintDuration = 14; // default
+            var twoSprintDays = 28; // Used for sizing calculations
+            
             if (sprintConfig) {
                 var sprintStartDate = new Date(sprintConfig.startDate);
-                var sprintDuration = sprintConfig.duration;
+                sprintDuration = sprintConfig.calendarDuration || sprintConfig.duration || 14;
+                twoSprintDays = sprintDuration * 2;
                 var currentSprintNum = sprintConfig.currentSprint;
                 
                 // Calculate which sprint minDate falls into
@@ -744,7 +849,7 @@
                 var sprintOffset = Math.floor(daysDiff / sprintDuration);
                 var firstSprintNum = currentSprintNum + sprintOffset;
                 
-                // Generate sprints covering the date range
+                // Generate all sprints covering the date range
                 var sprintDate = new Date(sprintStartDate);
                 sprintDate.setDate(sprintDate.getDate() + (sprintOffset * sprintDuration));
                 var sprintNum = firstSprintNum;
@@ -753,7 +858,8 @@
                     sprints.push({
                         number: sprintNum,
                         startDate: new Date(sprintDate),
-                        label: 'Sprint ' + sprintNum
+                        label: 'Sprint ' + sprintNum,
+                        workingDays: sprintConfig.workingDuration || getWorkingDays(sprintDuration)
                     });
                     sprintDate.setDate(sprintDate.getDate() + sprintDuration);
                     sprintNum++;
@@ -773,6 +879,9 @@
             }
             
             var totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
+            
+            // Calculate scale factor: size everything as if we're showing 2 sprints
+            var scaleFactor = totalDays / twoSprintDays;
             
             // Render left panel
             var leftHTML = '<div class="grid-header">';
@@ -803,7 +912,7 @@
                     var customNames = JSON.parse(localStorage.getItem('gantt_custom_names') || '{}');
                     var displayName = customNames[epic.id] || epicName;
                     
-                    leftHTML += '<div class="epic-row">';
+                    leftHTML += '<div class="epic-row" draggable="true" data-epic-id="' + epic.id + '" data-resource-id="' + resId + '">';
                     leftHTML += '<div class="epic-name" data-epic-id="' + epic.id + '" onclick="makeEditable(this)">' + displayName + '</div>';
                     leftHTML += '<div class="progress-circle-container">';
                     leftHTML += '<div class="progress-circle">';
@@ -827,20 +936,42 @@
             leftPanel.innerHTML = leftHTML;
             
             // Render right panel (timeline)
-            var rightHTML = '<div class="timeline-header">';
-            sprints.forEach(function(sprint) {
-                rightHTML += '<div class="timeline-month">' + sprint.label + '</div>';
-            });
-            rightHTML += '</div>';
+            var timelineWidth = scaleFactor * 100; // Width as percentage
+            var rightHTML = '<div class="timeline-wrapper" style="width: ' + timelineWidth + '%;">';
+            rightHTML += '<div class="timeline-header-wrapper"><div class="timeline-header">';
+            
+            // Render sprint headers with proportional widths
+            if (sprintConfig && sprints.length > 0) {
+                var calendarDuration = sprintConfig.calendarDuration || sprintConfig.duration || 14;
+                sprints.forEach(function(sprint, index) {
+                    var sprintStartOffset = Math.ceil((sprint.startDate - minDate) / (1000 * 60 * 60 * 24));
+                    var sprintEndDate = new Date(sprint.startDate);
+                    sprintEndDate.setDate(sprintEndDate.getDate() + calendarDuration);
+                    var sprintEndOffset = Math.ceil((sprintEndDate - minDate) / (1000 * 60 * 60 * 24));
+                    
+                    var leftPercent = (sprintStartOffset / totalDays) * 100;
+                    var widthPercent = ((sprintEndOffset - sprintStartOffset) / totalDays) * 100;
+                    
+                    rightHTML += '<div class="timeline-month" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%;">' + sprint.label + '</div>';
+                });
+            } else {
+                // Fallback for months
+                sprints.forEach(function(sprint) {
+                    rightHTML += '<div class="timeline-month" style="position: relative; flex: 1;">' + sprint.label + '</div>';
+                });
+            }
+            
+            rightHTML += '</div></div>';
             
             rightHTML += '<div class="timeline-body">';
             
             // Add sprint background columns and separator lines
             if (sprintConfig && sprints.length > 0) {
+                var calendarDuration = sprintConfig.calendarDuration || sprintConfig.duration || 14;
                 sprints.forEach(function(sprint, index) {
                     var sprintStartOffset = Math.ceil((sprint.startDate - minDate) / (1000 * 60 * 60 * 24));
                     var sprintEndDate = new Date(sprint.startDate);
-                    sprintEndDate.setDate(sprintEndDate.getDate() + sprintConfig.duration);
+                    sprintEndDate.setDate(sprintEndDate.getDate() + calendarDuration);
                     var sprintEndOffset = Math.ceil((sprintEndDate - minDate) / (1000 * 60 * 60 * 24));
                     
                     var leftPercent = (sprintStartOffset / totalDays) * 100;
@@ -889,10 +1020,12 @@
                     var pillColor = colorPalette[resource.colorIndex];
                     
                     rightHTML += '<div class="timeline-row">';
-                    rightHTML += '<div class="epic-pill" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%; background: ' + pillColor + ';">';
+                    rightHTML += '<div class="epic-pill" data-epic-id="' + epic.id + '" data-start-date="' + epic.start_date + '" data-duration="' + epic.duration + '" style="left: ' + leftPercent + '%; width: ' + widthPercent + '%; background: ' + pillColor + ';">';
+                    rightHTML += '<div class="resize-handle resize-handle-left"></div>';
                     rightHTML += '<div class="epic-pill-progress-bg" style="width: ' + progress + '%;"></div>';
                     rightHTML += '<span class="epic-pill-name">' + displayName + '</span>';
                     rightHTML += '<span class="epic-pill-progress">' + progress + '%</span>';
+                    rightHTML += '<div class="resize-handle resize-handle-right"></div>';
                     rightHTML += '</div>';
                     rightHTML += '</div>';
                 });
@@ -901,21 +1034,70 @@
             }
             
             rightHTML += '</div>';
+            rightHTML += '</div>'; // Close timeline-wrapper
             
             rightPanel.innerHTML = rightHTML;
+            
+            // Setup drag and drop for reordering
+            setupDragAndDrop();
+            
+            // Setup resize handles for epic pills
+            setupResizeHandles(minDate, totalDays, sprintConfig);
         }
         
         function downloadCustomExport() {
             var container = document.getElementById('exportContainer');
+            var rightPanel = document.getElementById('exportRight');
+            var exportContent = document.querySelector('.export-content');
+            var leftPanel = document.getElementById('exportLeft');
+            var timelineWrapper = document.querySelector('.timeline-wrapper');
+            
+            // Store original styles
+            var originalRightOverflow = rightPanel.style.overflow;
+            var originalRightWidth = rightPanel.style.width;
+            var originalRightMinWidth = rightPanel.style.minWidth;
+            var originalContentOverflow = exportContent.style.overflow;
+            var originalContainerDisplay = container.style.display;
+            
+            // Temporarily modify styles to show full content
+            rightPanel.style.overflow = 'visible';
+            rightPanel.style.width = 'auto';
+            rightPanel.style.minWidth = 'auto';
+            exportContent.style.overflow = 'visible';
+            container.style.display = 'flex';
+            container.style.flexWrap = 'nowrap';
+            
+            // Force layout recalculation
+            container.offsetHeight;
+            
+            // Calculate full dimensions with extra padding (10% buffer)
+            var leftWidth = leftPanel.offsetWidth;
+            var timelineWidth = timelineWrapper ? timelineWrapper.offsetWidth : 0;
+            var baseWidth = leftWidth + timelineWidth + 72; // Include padding
+            var fullWidth = Math.ceil(baseWidth * 1.1); // Add 10% buffer
+            var fullHeight = container.offsetHeight;
+            
+            console.log('Capturing dimensions:', fullWidth, 'x', fullHeight);
             
             html2canvas(container, {
                 scale: 2,
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
-                width: container.scrollWidth,
-                height: container.scrollHeight
+                width: fullWidth,
+                height: fullHeight,
+                scrollX: 0,
+                scrollY: -window.scrollY,
+                x: 0,
+                y: 0
             }).then(function(canvas) {
+                // Restore original styles
+                rightPanel.style.overflow = originalRightOverflow;
+                rightPanel.style.width = originalRightWidth;
+                rightPanel.style.minWidth = originalRightMinWidth;
+                exportContent.style.overflow = originalContentOverflow;
+                container.style.display = originalContainerDisplay;
+                
                 canvas.toBlob(function(blob) {
                     var url = URL.createObjectURL(blob);
                     var a = document.createElement('a');
@@ -925,6 +1107,13 @@
                     URL.revokeObjectURL(url);
                 });
             }).catch(function(error) {
+                // Restore original styles on error
+                rightPanel.style.overflow = originalRightOverflow;
+                rightPanel.style.width = originalRightWidth;
+                rightPanel.style.minWidth = originalRightMinWidth;
+                exportContent.style.overflow = originalContentOverflow;
+                container.style.display = originalContainerDisplay;
+                
                 console.error('Export failed:', error);
                 alert('Export failed: ' + error.message);
             });
@@ -934,6 +1123,167 @@
             localStorage.removeItem('sprint_config');
             closeCustomExport();
             openCustomExport();
+        }
+        
+        function setupDragAndDrop() {
+            var draggedElement = null;
+            var draggedEpicId = null;
+            var draggedResourceId = null;
+            
+            document.querySelectorAll('.epic-row').forEach(function(row) {
+                row.addEventListener('dragstart', function(e) {
+                    draggedElement = this;
+                    draggedEpicId = this.getAttribute('data-epic-id');
+                    draggedResourceId = this.getAttribute('data-resource-id');
+                    this.style.opacity = '0.5';
+                });
+                
+                row.addEventListener('dragend', function(e) {
+                    this.style.opacity = '';
+                    document.querySelectorAll('.epic-row').forEach(function(r) {
+                        r.classList.remove('drag-over');
+                    });
+                });
+                
+                row.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    return false;
+                });
+                
+                row.addEventListener('dragenter', function(e) {
+                    if (this !== draggedElement && this.getAttribute('data-resource-id') === draggedResourceId) {
+                        this.classList.add('drag-over');
+                    }
+                });
+                
+                row.addEventListener('dragleave', function(e) {
+                    this.classList.remove('drag-over');
+                });
+                
+                row.addEventListener('drop', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    
+                    if (this !== draggedElement && this.getAttribute('data-resource-id') === draggedResourceId) {
+                        var targetEpicId = this.getAttribute('data-epic-id');
+                        var resourceId = this.getAttribute('data-resource-id');
+                        
+                        // Update ordering in localStorage
+                        var epicOrdering = JSON.parse(localStorage.getItem('epic_ordering') || '{}');
+                        if (!epicOrdering[resourceId]) {
+                            epicOrdering[resourceId] = [];
+                        }
+                        
+                        // Remove dragged epic from current position
+                        epicOrdering[resourceId] = epicOrdering[resourceId].filter(function(id) {
+                            return id !== draggedEpicId;
+                        });
+                        
+                        // Insert at new position
+                        var targetIndex = epicOrdering[resourceId].indexOf(targetEpicId);
+                        if (targetIndex === -1) {
+                            epicOrdering[resourceId].push(draggedEpicId);
+                        } else {
+                            epicOrdering[resourceId].splice(targetIndex, 0, draggedEpicId);
+                        }
+                        
+                        localStorage.setItem('epic_ordering', JSON.stringify(epicOrdering));
+                        renderCustomExport();
+                    }
+                    
+                    return false;
+                });
+            });
+        }
+        
+        function setupResizeHandles(minDate, totalDays, sprintConfig) {
+            var isResizing = false;
+            var currentPill = null;
+            var resizeDirection = null;
+            var startX = 0;
+            var startLeft = 0;
+            var startWidth = 0;
+            
+            document.querySelectorAll('.resize-handle').forEach(function(handle) {
+                handle.addEventListener('mousedown', function(e) {
+                    e.stopPropagation();
+                    isResizing = true;
+                    currentPill = this.parentElement;
+                    resizeDirection = this.classList.contains('resize-handle-left') ? 'left' : 'right';
+                    startX = e.clientX;
+                    
+                    var pillRect = currentPill.getBoundingClientRect();
+                    var containerRect = currentPill.parentElement.parentElement.getBoundingClientRect();
+                    startLeft = ((pillRect.left - containerRect.left) / containerRect.width) * 100;
+                    startWidth = (pillRect.width / containerRect.width) * 100;
+                    
+                    currentPill.style.cursor = 'ew-resize';
+                    e.preventDefault();
+                });
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                var containerRect = currentPill.parentElement.parentElement.getBoundingClientRect();
+                var deltaX = e.clientX - startX;
+                var deltaPercent = (deltaX / containerRect.width) * 100;
+                
+                if (resizeDirection === 'left') {
+                    var newLeft = startLeft + deltaPercent;
+                    var newWidth = startWidth - deltaPercent;
+                    if (newWidth > 2) {
+                        currentPill.style.left = newLeft + '%';
+                        currentPill.style.width = newWidth + '%';
+                    }
+                } else {
+                    var newWidth = startWidth + deltaPercent;
+                    if (newWidth > 2) {
+                        currentPill.style.width = newWidth + '%';
+                    }
+                }
+            });
+            
+            document.addEventListener('mouseup', function(e) {
+                if (!isResizing) return;
+                isResizing = false;
+                currentPill.style.cursor = '';
+                
+                // Calculate new dates and duration
+                var epicId = currentPill.getAttribute('data-epic-id');
+                var pillRect = currentPill.getBoundingClientRect();
+                var containerRect = currentPill.parentElement.parentElement.getBoundingClientRect();
+                
+                var leftPercent = ((pillRect.left - containerRect.left) / containerRect.width) * 100;
+                var widthPercent = (pillRect.width / containerRect.width) * 100;
+                
+                var startOffset = Math.round((leftPercent / 100) * totalDays);
+                var duration = Math.round((widthPercent / 100) * totalDays);
+                
+                var newStartDate = new Date(minDate);
+                newStartDate.setDate(newStartDate.getDate() + startOffset);
+                
+                var newEndDate = new Date(newStartDate);
+                newEndDate.setDate(newEndDate.getDate() + duration);
+                
+                // Update gantt data
+                var task = gantt.getTask(parseInt(epicId));
+                if (task) {
+                    task.start_date = newStartDate.toISOString().split('T')[0];
+                    task.duration = duration;
+                    gantt.updateTask(parseInt(epicId));
+                    
+                    // Notify parent window to update the issues page
+                    window.parent.postMessage({
+                        type: 'updateEpicDates',
+                        epicId: epicId,
+                        startDate: task.start_date,
+                        duration: duration
+                    }, '*');
+                }
+                
+                currentPill = null;
+            });
         }
         
         function makeEditable(element) {
