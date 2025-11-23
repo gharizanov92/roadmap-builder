@@ -267,18 +267,18 @@
             color: #666;
         }
         
-        .editable-progress, .editable-duration {
+        .editable-progress {
             cursor: pointer;
             padding: 2px 4px;
             border-radius: 4px;
             transition: background 0.2s;
         }
         
-        .editable-progress:hover, .editable-duration:hover {
+        .editable-progress:hover {
             background: rgba(0, 122, 255, 0.1);
         }
         
-        .editable-progress input, .editable-duration input {
+        .editable-progress input {
             width: 50px;
             padding: 2px 4px;
             border: 2px solid #007aff;
@@ -679,12 +679,22 @@
         .epic-pill-progress {
             flex-shrink: 0;
             background: rgba(255, 255, 255, 0.25);
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 700;
+            padding: 2px 0;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 600;
             position: relative;
             z-index: 1;
+            width: 0;
+            overflow: hidden;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .epic-pill:hover .epic-pill-progress {
+            width: auto;
+            padding: 2px 6px;
+            margin-left: 8px;
         }
         
         #exportBar .label {
@@ -1248,7 +1258,7 @@
                     leftHTML += '</div>';
                     leftHTML += '<span class="progress-text editable-progress" data-epic-id="' + epic.id + '" onclick="makeProgressEditable(this)">' + progress + '%</span>';
                     leftHTML += '</div>';
-                    leftHTML += '<div class="duration-text editable-duration" data-epic-id="' + epic.id + '" onclick="makeDurationEditable(this)">' + epic.duration + ' days</div>';
+                    leftHTML += '<div class="duration-text">' + epic.duration + ' days</div>';
                     leftHTML += '</div>';
                 });
                 
@@ -1813,7 +1823,7 @@
                 .epic-pill { position: absolute; height: 32px; top: 9px; border-radius: 16px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: white; font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); overflow: hidden; z-index: 10; }
                 .epic-pill-progress-bg { position: absolute; left: 0; top: 0; height: 100%; background: rgba(255, 255, 255, 0.25); border-radius: 16px; pointer-events: none; }
                 .epic-pill-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 1; }
-                .epic-pill-progress { flex-shrink: 0; background: rgba(255, 255, 255, 0.25); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; position: relative; z-index: 1; }
+                .epic-pill-progress { flex-shrink: 0; background: rgba(255, 255, 255, 0.25); padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; position: relative; z-index: 1; opacity: 1; }
                 * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
             `;
             svg.insertBefore(style, svg.firstChild);
@@ -1916,8 +1926,10 @@
             var currentPill = null;
             var resizeDirection = null;
             var startX = 0;
-            var startLeft = 0;
-            var startWidth = 0;
+            var originalStartDate = null;
+            var originalEndDate = null;
+            var originalDuration = 0;
+            var pixelsPerDay = 0;
             
             document.querySelectorAll('.resize-handle').forEach(function(handle) {
                 handle.addEventListener('mousedown', function(e) {
@@ -1927,10 +1939,16 @@
                     resizeDirection = this.classList.contains('resize-handle-left') ? 'left' : 'right';
                     startX = e.clientX;
                     
-                    var pillRect = currentPill.getBoundingClientRect();
+                    var epicId = parseInt(currentPill.getAttribute('data-epic-id'));
+                    var task = gantt.getTask(epicId);
+                    
+                    originalStartDate = new Date(task.start_date);
+                    originalDuration = task.duration;
+                    originalEndDate = new Date(originalStartDate);
+                    originalEndDate.setDate(originalEndDate.getDate() + originalDuration);
+                    
                     var containerRect = currentPill.parentElement.parentElement.getBoundingClientRect();
-                    startLeft = ((pillRect.left - containerRect.left) / containerRect.width) * 100;
-                    startWidth = (pillRect.width / containerRect.width) * 100;
+                    pixelsPerDay = containerRect.width / totalDays;
                     
                     currentPill.style.cursor = 'ew-resize';
                     e.preventDefault();
@@ -1940,21 +1958,38 @@
             document.addEventListener('mousemove', function(e) {
                 if (!isResizing) return;
                 
-                var containerRect = currentPill.parentElement.parentElement.getBoundingClientRect();
                 var deltaX = e.clientX - startX;
-                var deltaPercent = (deltaX / containerRect.width) * 100;
+                var daysDelta = Math.round(deltaX / pixelsPerDay);
+                
+                // Calculate new positions
+                var containerRect = currentPill.parentElement.parentElement.getBoundingClientRect();
+                var containerWidth = containerRect.width;
                 
                 if (resizeDirection === 'left') {
-                    var newLeft = startLeft + deltaPercent;
-                    var newWidth = startWidth - deltaPercent;
-                    if (newWidth > 2) {
-                        currentPill.style.left = newLeft + '%';
-                        currentPill.style.width = newWidth + '%';
+                    // Adjust start position
+                    var newStartDate = new Date(originalStartDate);
+                    newStartDate.setDate(newStartDate.getDate() + daysDelta);
+                    var newEndDate = new Date(originalEndDate);
+                    var newDuration = Math.ceil((newEndDate - newStartDate) / (1000 * 60 * 60 * 24));
+                    
+                    if (newDuration >= 1) {
+                        var startOffset = Math.floor((newStartDate - minDate) / (1000 * 60 * 60 * 24));
+                        var leftPercent = (startOffset / totalDays) * 100;
+                        var widthPercent = (newDuration / totalDays) * 100;
+                        
+                        currentPill.style.left = leftPercent + '%';
+                        currentPill.style.width = widthPercent + '%';
                     }
                 } else {
-                    var newWidth = startWidth + deltaPercent;
-                    if (newWidth > 2) {
-                        currentPill.style.width = newWidth + '%';
+                    // Adjust end position (width)
+                    var newEndDate = new Date(originalEndDate);
+                    newEndDate.setDate(newEndDate.getDate() + daysDelta);
+                    var newStartDate = new Date(originalStartDate);
+                    var newDuration = Math.ceil((newEndDate - newStartDate) / (1000 * 60 * 60 * 24));
+                    
+                    if (newDuration >= 1) {
+                        var widthPercent = (newDuration / totalDays) * 100;
+                        currentPill.style.width = widthPercent + '%';
                     }
                 }
             });
@@ -1964,37 +1999,96 @@
                 isResizing = false;
                 currentPill.style.cursor = '';
                 
-                // Calculate new dates and duration
-                var epicId = currentPill.getAttribute('data-epic-id');
-                var pillRect = currentPill.getBoundingClientRect();
-                var containerRect = currentPill.parentElement.parentElement.getBoundingClientRect();
+                var epicId = parseInt(currentPill.getAttribute('data-epic-id'));
+                var task = gantt.getTask(epicId);
                 
-                var leftPercent = ((pillRect.left - containerRect.left) / containerRect.width) * 100;
-                var widthPercent = (pillRect.width / containerRect.width) * 100;
-                
-                var startOffset = Math.round((leftPercent / 100) * totalDays);
-                var duration = Math.round((widthPercent / 100) * totalDays);
-                
-                var newStartDate = new Date(minDate);
-                newStartDate.setDate(newStartDate.getDate() + startOffset);
-                
-                var newEndDate = new Date(newStartDate);
-                newEndDate.setDate(newEndDate.getDate() + duration);
-                
-                // Update gantt data
-                var task = gantt.getTask(parseInt(epicId));
                 if (task) {
-                    task.start_date = newStartDate.toISOString().split('T')[0];
-                    task.duration = duration;
-                    gantt.updateTask(parseInt(epicId));
+                    // Calculate final dates based on mouse position
+                    var deltaX = e.clientX - startX;
+                    var daysDelta = Math.round(deltaX / pixelsPerDay);
                     
-                    // Notify parent window to update the issues page
+                    var newStartDate, newEndDate, newDuration;
+                    
+                    if (resizeDirection === 'left') {
+                        // Adjusted start date
+                        newStartDate = new Date(originalStartDate);
+                        newStartDate.setDate(newStartDate.getDate() + daysDelta);
+                        newEndDate = new Date(originalEndDate);
+                        newDuration = Math.ceil((newEndDate - newStartDate) / (1000 * 60 * 60 * 24));
+                        
+                        if (newDuration >= 1) {
+                            task.start_date = newStartDate.toISOString().split('T')[0];
+                            task.duration = newDuration;
+                        } else {
+                            // Reset if invalid
+                            currentPill = null;
+                            return;
+                        }
+                    } else {
+                        // Adjusted end date
+                        newStartDate = new Date(originalStartDate);
+                        newEndDate = new Date(originalEndDate);
+                        newEndDate.setDate(newEndDate.getDate() + daysDelta);
+                        newDuration = Math.ceil((newEndDate - newStartDate) / (1000 * 60 * 60 * 24));
+                        
+                        if (newDuration >= 1) {
+                            task.duration = newDuration;
+                        } else {
+                            // Reset if invalid
+                            currentPill = null;
+                            return;
+                        }
+                    }
+                    
+                    // Calculate final end date
+                    var finalStartDate = new Date(task.start_date);
+                    var finalEndDate = new Date(finalStartDate);
+                    finalEndDate.setDate(finalEndDate.getDate() + task.duration);
+                    
+                    console.log('Before update - Task:', task.text, 'Start:', task.start_date, 'Duration:', task.duration);
+                    
+                    // Update gantt task
+                    gantt.updateTask(epicId);
+                    
+                    // Verify the update
+                    var updatedTask = gantt.getTask(epicId);
+                    console.log('After update - Task:', updatedTask.text, 'Start:', updatedTask.start_date, 'Duration:', updatedTask.duration);
+                    
+                    // Update localStorage FIRST before re-rendering
+                    var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
+                    if (task.originalIndex !== undefined && jiras[task.originalIndex]) {
+                        jiras[task.originalIndex].startDate = task.start_date;
+                        jiras[task.originalIndex].endDate = finalEndDate.toISOString().split('T')[0];
+                        localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
+                        
+                        console.log('Saved to localStorage - Epic:', task.text);
+                        console.log('  Start:', task.start_date);
+                        console.log('  End:', finalEndDate.toISOString().split('T')[0]);
+                        console.log('  Duration:', task.duration, 'days');
+                    }
+                    
+                    // Notify parent window
                     window.parent.postMessage({
                         type: 'updateEpicDates',
                         originalIndex: task.originalIndex,
                         startDate: task.start_date,
-                        duration: duration
+                        endDate: finalEndDate.toISOString().split('T')[0],
+                        duration: task.duration
                     }, '*');
+                    
+                    // Update the duration text in the left panel without full re-render
+                    var epicRows = document.querySelectorAll('.epic-row');
+                    epicRows.forEach(function(row) {
+                        if (row.getAttribute('data-epic-id') === epicId.toString()) {
+                            var durationText = row.querySelector('.duration-text');
+                            if (durationText) {
+                                durationText.textContent = task.duration + ' days';
+                            }
+                        }
+                    });
+                    
+                    // Redraw arrows to reflect new positions
+                    renderDependencyArrows();
                 }
                 
                 currentPill = null;
@@ -2299,72 +2393,7 @@
             });
         }
         
-        function makeDurationEditable(element) {
-            var epicId = parseInt(element.getAttribute('data-epic-id'));
-            var currentDuration = parseInt(element.textContent);
-            
-            var input = document.createElement('input');
-            input.type = 'number';
-            input.min = '1';
-            input.value = currentDuration;
-            input.style.width = '50px';
-            
-            element.textContent = '';
-            element.appendChild(input);
-            input.focus();
-            input.select();
-            
-            var saveDuration = function() {
-                var newDuration = parseInt(input.value);
-                if (isNaN(newDuration) || newDuration < 1) {
-                    newDuration = currentDuration;
-                }
-                
-                // Calculate the difference in days
-                var daysDifference = newDuration - currentDuration;
-                
-                // Update gantt task
-                var task = gantt.getTask(epicId);
-                if (task) {
-                    task.duration = newDuration;
-                    gantt.updateTask(epicId);
-                    
-                    // Update localStorage (issues page data)
-                    var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
-                    if (task.originalIndex !== undefined && jiras[task.originalIndex]) {
-                        // Get current end date and adjust by the difference
-                        var currentEndDate = new Date(jiras[task.originalIndex].endDate);
-                        currentEndDate.setDate(currentEndDate.getDate() + daysDifference);
-                        
-                        jiras[task.originalIndex].endDate = currentEndDate.toISOString().split('T')[0];
-                        localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
-                        
-                        console.log('Duration changed from', currentDuration, 'to', newDuration, '(', daysDifference > 0 ? '+' + daysDifference : daysDifference, 'days)');
-                        console.log('New end date:', jiras[task.originalIndex].endDate);
-                    }
-                    
-                    // Notify parent window
-                    window.parent.postMessage({
-                        type: 'updateEpicDates',
-                        originalIndex: task.originalIndex,
-                        startDate: task.start_date,
-                        duration: newDuration
-                    }, '*');
-                }
-                
-                renderCustomExport();
-            };
-            
-            input.addEventListener('blur', saveDuration);
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    saveDuration();
-                } else if (e.key === 'Escape') {
-                    renderCustomExport();
-                }
-            });
-        }
+
     </script>
 </body>
 </html>

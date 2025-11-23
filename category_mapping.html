@@ -2008,6 +2008,12 @@
 
             mappedJiras = [];
             
+            // Find the earliest Monday for default date generation
+            const today = new Date();
+            const earliestMonday = new Date(today);
+            earliestMonday.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+            earliestMonday.setHours(0, 0, 0, 0);
+            
             for (let i = 1; i < rows.length; i++) {
                 const values = rows[i];
                 if (values.length === 0 || values.every(v => !v)) continue;
@@ -2040,6 +2046,30 @@
                 
                 mappedJiras.push(jira);
             }
+            
+            // Generate default dates and progress for items without them
+            mappedJiras.forEach((jira, index) => {
+                // Generate random progress if not set (0-100)
+                if (!jira.progress || jira.progress === 0) {
+                    jira.progress = Math.floor(Math.random() * 101); // 0-100
+                }
+                
+                // Generate random dates if not set
+                if (!jira.startDate || !jira.endDate) {
+                    // Random start day within 7-day range from earliest Monday
+                    const randomStartOffset = Math.floor(Math.random() * 7);
+                    const startDate = new Date(earliestMonday);
+                    startDate.setDate(startDate.getDate() + randomStartOffset);
+                    
+                    // Random duration 1-5 days
+                    const randomDuration = Math.floor(Math.random() * 5) + 1;
+                    const endDate = new Date(startDate);
+                    endDate.setDate(endDate.getDate() + randomDuration);
+                    
+                    jira.startDate = startDate.toISOString().split('T')[0];
+                    jira.endDate = endDate.toISOString().split('T')[0];
+                }
+            });
 
             // Render and save while still in loading state
             renderDataGrid();
