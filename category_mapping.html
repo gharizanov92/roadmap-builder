@@ -2866,18 +2866,24 @@
                 return issue;
             });
             
-            // Transform to roadmap format
-            const roadmapData = selectedIssues.map((jira, idx) => ({
-                id: jira.issueKey || ('T' + (idx + 1)),
-                resource: jira.category || 'Unassigned',
-                name: (jira.issueKey ? jira.issueKey + ': ' : '') + jira.summary,
-                start: jira.startDate,
-                end: jira.endDate,
-                progress: jira.progress || 0,
-                status: jira.status || 'To Do',
-                dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null,
-                originalIndex: mappedJiras.indexOf(jira)
-            }));
+            // Transform to roadmap format with original indices
+            const roadmapData = [];
+            for (let i = 0; i < mappedJiras.length; i++) {
+                const jira = mappedJiras[i];
+                if (jira.selected && jira.category) {
+                    roadmapData.push({
+                        id: jira.issueKey || ('T' + (roadmapData.length + 1)),
+                        resource: jira.category || 'Unassigned',
+                        name: (jira.issueKey ? jira.issueKey + ': ' : '') + jira.summary,
+                        start: jira.startDate,
+                        end: jira.endDate,
+                        progress: jira.progress || 0,
+                        status: jira.status || 'To Do',
+                        dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null,
+                        originalIndex: i
+                    });
+                }
+            }
             
             // Send data to iframe
             const sendData = () => {
@@ -2950,18 +2956,24 @@
                 return issue;
             });
             
-            // Transform to roadmap format
-            const roadmapData = selectedIssues.map((jira, idx) => ({
-                id: jira.issueKey || ('T' + (idx + 1)),
-                resource: jira.category || 'Unassigned',
-                name: (jira.issueKey ? jira.issueKey + ': ' : '') + jira.summary,
-                start: jira.startDate,
-                end: jira.endDate,
-                progress: jira.progress || 0,
-                status: jira.status || 'To Do',
-                dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null,
-                originalIndex: mappedJiras.indexOf(jira)
-            }));
+            // Transform to roadmap format with original indices
+            const roadmapData = [];
+            for (let i = 0; i < mappedJiras.length; i++) {
+                const jira = mappedJiras[i];
+                if (jira.selected && jira.category) {
+                    roadmapData.push({
+                        id: jira.issueKey || ('T' + (roadmapData.length + 1)),
+                        resource: jira.category || 'Unassigned',
+                        name: (jira.issueKey ? jira.issueKey + ': ' : '') + jira.summary,
+                        start: jira.startDate,
+                        end: jira.endDate,
+                        progress: jira.progress || 0,
+                        status: jira.status || 'To Do',
+                        dependency: jira.dependency !== null && jira.dependency !== undefined ? jira.dependency : null,
+                        originalIndex: i
+                    });
+                }
+            }
             
             // Wait for iframe to load, then send data
             const sendDataToIframe = () => {
@@ -2985,14 +2997,22 @@
         
         // Listen for messages from Gantt chart iframe
         window.addEventListener('message', function(event) {
+            console.log('Received message:', event.data);
+            
             if (event.data && event.data.type === 'updateEpicDependency') {
                 var originalIndex = event.data.originalIndex;
                 var dependency = event.data.dependency;
                 
+                console.log('Processing dependency update:', {originalIndex, dependency, mappedJirasLength: mappedJiras.length});
+                
                 if (originalIndex !== undefined && originalIndex >= 0 && originalIndex < mappedJiras.length) {
+                    console.log('Before update:', mappedJiras[originalIndex].dependency);
                     mappedJiras[originalIndex].dependency = dependency;
+                    console.log('After update:', mappedJiras[originalIndex].dependency);
                     saveJiraData();
-                    console.log('Updated dependency for epic at index', originalIndex, 'to', dependency);
+                    console.log('Saved to localStorage');
+                } else {
+                    console.error('Invalid originalIndex:', originalIndex);
                 }
             } else if (event.data && event.data.type === 'updateEpicDates') {
                 var originalIndex = event.data.originalIndex;

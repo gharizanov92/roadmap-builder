@@ -1861,6 +1861,13 @@
                 task.dependency = selectedDependencyIndex;
                 gantt.updateTask(currentDependencyEpicId);
                 
+                console.log('Saving dependency link:', {
+                    epicId: currentDependencyEpicId,
+                    originalIndex: task.originalIndex,
+                    dependency: selectedDependencyIndex,
+                    task: task
+                });
+                
                 // Notify parent window to update the issues page
                 window.parent.postMessage({
                     type: 'updateEpicDependency',
