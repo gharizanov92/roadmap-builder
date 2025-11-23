@@ -1324,6 +1324,10 @@
                 <i class="fas fa-chart-gantt"></i>
                 <span>Gantt Chart</span>
             </div>
+            <div class="nav-item" onclick="switchView('timeline')">
+                <i class="fas fa-timeline"></i>
+                <span>Timeline View</span>
+            </div>
         </nav>
     </div>
 
@@ -1458,9 +1462,15 @@
 
             <!-- Gantt View -->
             <div class="view" id="ganttView">
-                <div id="chartdiv"></div>
+                <iframe id="ganttFrame" src="gann.html" style="width:100%;height:100%;border:none;border-radius:12px;"></iframe>
             </div>
             <!-- End Gantt View -->
+            
+            <!-- Timeline View -->
+            <div class="view" id="timelineView">
+                <div id="frappeGanttContainer" style="width:100%;height:100%;"></div>
+            </div>
+            <!-- End Timeline View -->
         </div>
     </div>
 
@@ -2717,6 +2727,10 @@
                 document.getElementById('ganttView').classList.add('active');
                 document.getElementById('viewTitle').textContent = 'Gantt Chart';
                 renderGanttChart();
+            } else if (viewName === 'timeline') {
+                document.getElementById('timelineView').classList.add('active');
+                document.getElementById('viewTitle').textContent = 'Timeline View';
+                renderFrappeGantt();
             }
         }
 
@@ -2730,91 +2744,31 @@
             document.getElementById('totalResources').textContent = resources;
         }
 
-        function loadAmCharts(callback) {
-            if (amChartsLoaded) {
-                callback();
-                return;
-            }
-            
-            if (amChartsLoading) {
-                setTimeout(() => loadAmCharts(callback), 100);
-                return;
-            }
-            
-            amChartsLoading = true;
-            
-            // Load all scripts with proper module type
-            const scripts = [
-                { src: 'https://cdn.amcharts.com/lib/5/index.js', type: 'text/javascript' },
-                { src: 'https://cdn.amcharts.com/lib/5/xy.js', type: 'text/javascript' },
-                { src: 'https://cdn.amcharts.com/lib/5/themes/Animated.js', type: 'text/javascript' }
-            ];
-            
-            let loadedCount = 0;
-            
-            scripts.forEach((scriptInfo) => {
-                const script = document.createElement('script');
-                script.src = scriptInfo.src;
-                script.type = scriptInfo.type;
-                script.async = false; // Ensure sequential execution
-                
-                script.onload = () => {
-                    loadedCount++;
-                    if (loadedCount === scripts.length) {
-                        // All base scripts loaded, now try gantt separately
-                        setTimeout(() => {
-                            const ganttScript = document.createElement('script');
-                            ganttScript.src = 'https://cdn.amcharts.com/lib/5/gantt.js';
-                            ganttScript.type = 'text/javascript';
-                            ganttScript.async = false;
-                            
-                            ganttScript.onload = () => {
-                                setTimeout(() => {
-                                    amChartsLoaded = true;
-                                    amChartsLoading = false;
-                                    callback();
-                                }, 500);
-                            };
-                            
-                            ganttScript.onerror = () => {
-                                console.error('Failed to load gantt.js');
-                                amChartsLoading = false;
-                                // Fallback: render without gantt
-                                amChartsLoaded = true;
-                                callback();
-                            };
-                            
-                            document.head.appendChild(ganttScript);
-                        }, 300);
-                    }
-                };
-                
-                script.onerror = () => {
-                    console.error('Failed to load:', scriptInfo.src);
-                    amChartsLoading = false;
-                };
-                
-                document.head.appendChild(script);
-            });
-        }
-
         function renderGanttChart() {
-            // Clear existing chart
-            const chartDiv = document.getElementById('chartdiv');
-            chartDiv.innerHTML = '';
-            
-            // Use enhanced timeline view directly (amCharts gantt has persistent module issues)
-            // Skip amCharts loading and use our custom timeline
-            
             // Filter selected issues with categories
             let selectedIssues = mappedJiras.filter(jira => 
                 jira.selected && jira.category
             );
             
             if (selectedIssues.length === 0) {
-                chartDiv.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(0,0,0,0.5);font-size:16px;">No issues with categories selected. Please assign categories to issues.</div>';
+                const ganttFrame = document.getElementById('ganttFrame');
+                ganttFrame.style.display = 'none';
+                const ganttView = document.getElementById('ganttView');
+                const placeholder = document.createElement('div');
+                placeholder.id = 'ganttPlaceholder';
+                placeholder.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;color:rgba(0,0,0,0.5);font-size:16px;';
+                placeholder.textContent = 'No issues with categories selected. Please assign categories to issues.';
+                ganttView.appendChild(placeholder);
                 return;
             }
+            
+            // Remove placeholder if exists
+            const placeholder = document.getElementById('ganttPlaceholder');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            const ganttFrame = document.getElementById('ganttFrame');
+            ganttFrame.style.display = 'block';
             
             // Apply smart date defaults
             const today = new Date().toISOString().split('T')[0];
@@ -2842,8 +2796,170 @@
                 return issue;
             });
             
-            // Render enhanced timeline view
-            renderFallbackTimeline(selectedIssues, chartDiv);
+            // Transform to roadmap format
+            const roadmapData = selectedIssues.map((jira, idx) => ({
+                id: jira.issueKey || ('T' + (idx + 1)),
+                resource: jira.category || 'Unassigned',
+                name: (jira.issueKey ? jira.issueKey + ': ' : '') + jira.summary,
+                start: jira.startDate,
+                end: jira.endDate,
+                progress: jira.progress || 0,
+                status: jira.status || 'To Do'
+            }));
+            
+            // Wait for iframe to load, then send data
+            const sendDataToIframe = () => {
+                try {
+                    ganttFrame.contentWindow.postMessage({
+                        type: 'updateGantt',
+                        data: roadmapData
+                    }, '*');
+                } catch (e) {
+                    console.log('Waiting for iframe to load...');
+                    setTimeout(sendDataToIframe, 100);
+                }
+            };
+            
+            if (ganttFrame.contentWindow && ganttFrame.contentWindow.postMessage) {
+                sendDataToIframe();
+            } else {
+                ganttFrame.onload = sendDataToIframe;
+            }
+        }
+        
+        function renderFrappeGantt() {
+            // Filter selected issues with categories
+            let selectedIssues = mappedJiras.filter(jira => 
+                jira.selected && jira.category
+            );
+            
+            const ganttContainer = document.getElementById('frappeGanttContainer');
+            
+            if (selectedIssues.length === 0) {
+                ganttContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(0,0,0,0.5);font-size:16px;">No issues with categories selected. Please assign categories to issues.</div>';
+                return;
+            }
+            
+            // Apply smart date defaults
+            const today = new Date().toISOString().split('T')[0];
+            const threeDaysLater = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
+            selectedIssues = selectedIssues.map(jira => {
+                const issue = {...jira};
+                
+                if (!issue.startDate && !issue.endDate) {
+                    issue.startDate = today;
+                    issue.endDate = threeDaysLater;
+                } else if (!issue.startDate && issue.endDate) {
+                    issue.startDate = today;
+                } else if (issue.startDate && !issue.endDate) {
+                    const startMs = new Date(issue.startDate).getTime();
+                    const endMs = startMs + (3 * 24 * 60 * 60 * 1000);
+                    issue.endDate = new Date(endMs).toISOString().split('T')[0];
+                }
+                
+                return issue;
+            });
+            
+            // Group by resource
+            const resourceGroups = {};
+            selectedIssues.forEach(jira => {
+                const resource = jira.category || 'Unassigned';
+                if (!resourceGroups[resource]) {
+                    resourceGroups[resource] = [];
+                }
+                resourceGroups[resource].push(jira);
+            });
+            
+            // Build HTML Gantt chart
+            ganttContainer.innerHTML = '';
+            
+            let html = '<div style="padding:24px;background:white;border-radius:12px;overflow:auto;height:100%;">';
+            html += '<div style="margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">';
+            html += '<h3 style="margin:0;color:#1d1d1f;font-size:20px;font-weight:600;">Resource Timeline</h3>';
+            html += `<div style="font-size:13px;color:rgba(0,0,0,0.5);">${selectedIssues.length} tasks • ${Object.keys(resourceGroups).length} resources</div>`;
+            html += '</div>';
+            
+            // Find date range
+            const allDates = selectedIssues.flatMap(j => [new Date(j.startDate), new Date(j.endDate)]);
+            const minDate = new Date(Math.min(...allDates));
+            const maxDate = new Date(Math.max(...allDates));
+            const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // Generate month headers
+            const months = [];
+            let currentDate = new Date(minDate);
+            while (currentDate <= maxDate) {
+                const monthKey = currentDate.getFullYear() + '-' + String(currentDate.getMonth() + 1).padStart(2, '0');
+                if (!months.find(m => m.key === monthKey)) {
+                    months.push({
+                        key: monthKey,
+                        label: currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                        start: new Date(currentDate)
+                    });
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            // Render timeline
+            html += '<div style="display:flex;border:1px solid rgba(0,0,0,0.08);border-radius:12px;overflow:hidden;">';
+            
+            // Left panel - task names
+            html += '<div style="width:300px;flex-shrink:0;border-right:1px solid rgba(0,0,0,0.08);background:rgba(248,249,250,0.5);">';
+            html += '<div style="padding:12px 16px;font-weight:600;font-size:13px;color:#1d1d1f;border-bottom:1px solid rgba(0,0,0,0.08);height:60px;display:flex;align-items:center;">Tasks</div>';
+            
+            Object.keys(resourceGroups).sort().forEach(resource => {
+                const tasks = resourceGroups[resource];
+                html += `<div style="padding:8px 16px;font-weight:600;font-size:14px;color:#007aff;background:rgba(0,122,255,0.05);border-bottom:1px solid rgba(0,0,0,0.06);">${escapeHtml(resource)}</div>`;
+                
+                tasks.forEach(jira => {
+                    html += `<div style="padding:10px 16px;font-size:13px;border-bottom:1px solid rgba(0,0,0,0.06);background:white;">`;
+                    html += `<div style="font-weight:500;color:#1d1d1f;margin-bottom:2px;">${escapeHtml(jira.issueKey || '')}</div>`;
+                    html += `<div style="font-size:11px;color:rgba(0,0,0,0.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(jira.summary)}</div>`;
+                    html += `</div>`;
+                });
+            });
+            html += '</div>';
+            
+            // Right panel - timeline
+            html += '<div style="flex:1;overflow-x:auto;">';
+            
+            // Timeline header
+            html += '<div style="display:flex;border-bottom:1px solid rgba(0,0,0,0.08);background:rgba(248,249,250,0.95);height:60px;">';
+            months.forEach(month => {
+                const monthStart = month.start;
+                const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+                const daysInMonth = Math.min(monthEnd.getDate(), Math.ceil((maxDate - monthStart) / (1000 * 60 * 60 * 24)) + 1);
+                const width = Math.max(daysInMonth * 30, 80);
+                html += `<div style="min-width:${width}px;padding:8px;text-align:center;border-right:1px solid rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#1d1d1f;">${month.label}</div>`;
+            });
+            html += '</div>';
+            
+            // Timeline bars
+            Object.keys(resourceGroups).sort().forEach(resource => {
+                const tasks = resourceGroups[resource];
+                html += `<div style="background:rgba(0,122,255,0.05);border-bottom:1px solid rgba(0,0,0,0.06);height:40px;"></div>`;
+                
+                tasks.forEach(jira => {
+                    const startDate = new Date(jira.startDate);
+                    const endDate = new Date(jira.endDate);
+                    const startOffset = Math.floor((startDate - minDate) / (1000 * 60 * 60 * 24));
+                    const duration = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                    const left = startOffset * 30;
+                    const width = duration * 30;
+                    const progress = jira.progress || 0;
+                    
+                    html += `<div style="position:relative;height:50px;border-bottom:1px solid rgba(0,0,0,0.06);background:white;">`;
+                    html += `<div style="position:absolute;left:${left}px;top:12px;width:${width}px;height:26px;background:#007aff;border-radius:6px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">`;
+                    html += `<div style="position:absolute;left:0;top:0;bottom:0;width:${progress}%;background:rgba(255,255,255,0.3);"></div>`;
+                    html += `<div style="position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:600;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${progress}%</div>`;
+                    html += `</div></div>`;
+                });
+            });
+            html += '</div>';
+            
+            html += '</div></div>';
+            ganttContainer.innerHTML = html;
         }
 
         function renderFallbackTimeline(issues, container) {
