@@ -464,13 +464,24 @@ function renderCustomExport(sprintConfig) {
             var customNames = JSON.parse(localStorage.getItem('gantt_custom_names') || '{}');
             var displayName = customNames[epic.id] || epicName;
             
-            var hasDependency = epic.dependency !== null && epic.dependency !== undefined;
-            var buttonColor = hasDependency ? circleColor : '#999';
+            // Check if this epic is a SOURCE (if any other epic depends on it)
+            var isSource = false;
+            gantt.eachTask(function(t) {
+                if (t.type !== 'project' && t.dependency !== null && t.dependency !== undefined) {
+                    // Handle both array and single value dependencies
+                    var deps = Array.isArray(t.dependency) ? t.dependency : [t.dependency];
+                    if (deps.indexOf(epic.originalIndex) !== -1) {
+                        isSource = true;
+                    }
+                }
+            });
+            
+            var buttonColor = isSource ? circleColor : '#999';
             
             leftHTML += '<div class="epic-row" draggable="true" data-epic-id="' + epic.id + '" data-resource-id="' + resId + '">';
             
-            // Remove link button (only shown if has dependency)
-            if (hasDependency) {
+            // Remove link button (only shown if this epic is a source)
+            if (isSource) {
                 leftHTML += '<button class="epic-remove-link-btn" data-epic-id="' + epic.id + '" title="Remove link">';
                 leftHTML += '<i class="fas fa-times"></i>';
                 leftHTML += '</button>';
@@ -480,7 +491,7 @@ function renderCustomExport(sprintConfig) {
             }
             
             // Link button
-            leftHTML += '<button class="epic-link-btn' + (hasDependency ? ' has-dependency' : '') + '" data-epic-id="' + epic.id + '" data-category-color="' + circleColor + '" title="Quick link: Select as prerequisite" style="--category-color: ' + circleColor + '; color: ' + buttonColor + ';">';
+            leftHTML += '<button class="epic-link-btn' + (isSource ? ' has-dependency' : '') + '" data-epic-id="' + epic.id + '" data-category-color="' + circleColor + '" title="Quick link: Select as prerequisite" style="--category-color: ' + circleColor + '; color: ' + buttonColor + ';">';
             leftHTML += '<svg width="24" height="16" viewBox="0 0 24 16" fill="none">';
             leftHTML += '<circle cx="4" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>';
             leftHTML += '<line x1="7" y1="8" x2="17" y2="8" stroke="currentColor" stroke-width="1.5"/>';
@@ -807,31 +818,44 @@ function renderDependencyArrows() {
         pillMap[epicId] = pill;
     });
     
-    // Get dependencies from gantt data
+    // Get dependencies from gantt data - supports both single and multiple dependencies
     gantt.eachTask(function(task) {
         if (task.type !== 'project' && task.dependency !== null && task.dependency !== undefined) {
-            
-            // Find the source and target pills
             var targetPill = pillMap[task.id];
             
-            // Find source task by originalIndex (stable across reordering)
-            var sourceTask = null;
-            gantt.eachTask(function(t) {
-                if (t.type !== 'project' && t.originalIndex === task.dependency) {
-                    sourceTask = t;
+            // Convert to array if single value
+            var dependencies = Array.isArray(task.dependency) ? task.dependency : [task.dependency];
+            
+            // Draw arrow for each dependency
+            dependencies.forEach(function(depOriginalIndex) {
+                console.log('Drawing arrow for task:', task.text, 'dependency originalIndex:', depOriginalIndex);
+                
+                // Find source task by originalIndex
+                var sourceTask = null;
+                gantt.eachTask(function(t) {
+                    if (t.type !== 'project' && t.originalIndex === depOriginalIndex) {
+                        sourceTask = t;
+                    }
+                });
+                
+                if (sourceTask) {
+                    console.log('  -> Found source task:', sourceTask.text, 'ID:', sourceTask.id, 'originalIndex:', sourceTask.originalIndex);
+                } else {
+                    console.warn('  -> Source task not found for originalIndex:', depOriginalIndex);
+                }
+                
+                if (sourceTask && targetPill) {
+                    var sourcePill = pillMap[sourceTask.id];
+                    if (sourcePill) {
+                        console.log('  -> Drawing arrow from', sourceTask.text, 'to', task.text);
+                        drawArrowOnCanvas(ctx, sourcePill, targetPill, timelineBody);
+                    } else {
+                        console.warn('  -> Source pill not found for task ID:', sourceTask.id);
+                    }
+                } else if (!targetPill) {
+                    console.warn('  -> Target pill not found for task ID:', task.id);
                 }
             });
-            
-            if (sourceTask && targetPill) {
-                var sourcePill = pillMap[sourceTask.id];
-                if (sourcePill) {
-                    drawArrowOnCanvas(ctx, sourcePill, targetPill, timelineBody);
-                } else {
-                    console.warn('  -> Source pill not found for task ID:', sourceTask.id);
-                }
-            } else if (!targetPill) {
-                console.warn('  -> Target pill not found for task ID:', task.id);
-            }
         }
     });
 }
@@ -1646,7 +1670,7 @@ function selectDependency(epicId) {
     });
 }
 
-// Quick link function for two-click linking
+// Quick link function for two-click linking - supports multiple dependencies
 function createQuickLink(targetEpicId, sourceEpicId) {
     console.log('Creating link:', targetEpicId, '→', sourceEpicId);
     
@@ -1658,62 +1682,101 @@ function createQuickLink(targetEpicId, sourceEpicId) {
         return;
     }
     
-    // Store the originalIndex of the source task as the dependency
-    targetTask.dependency = sourceTask.originalIndex;
-    gantt.updateTask(targetEpicId);
-    
-    console.log('Link created:', targetTask.text, 'depends on', sourceTask.text);
-    console.log('  Target originalIndex:', targetTask.originalIndex, 'depends on source originalIndex:', sourceTask.originalIndex);
-    
-    // Update localStorage
-    var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
-    if (targetTask.originalIndex !== undefined && jiras[targetTask.originalIndex]) {
-        jiras[targetTask.originalIndex].dependency = targetTask.dependency;
-        localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
+    // Convert dependency to array if it's not already
+    if (!Array.isArray(targetTask.dependency)) {
+        if (targetTask.dependency === null || targetTask.dependency === undefined) {
+            targetTask.dependency = [];
+        } else {
+            // Convert single value to array
+            targetTask.dependency = [targetTask.dependency];
+        }
     }
     
-    // Notify parent window
-    window.parent.postMessage({
-        type: 'updateEpicDependency',
-        originalIndex: targetTask.originalIndex,
-        dependency: targetTask.dependency
-    }, '*');
-    
-    // Re-render to show the arrow
-    renderCustomExport();
+    // Add the new dependency if not already present
+    if (targetTask.dependency.indexOf(sourceTask.originalIndex) === -1) {
+        targetTask.dependency.push(sourceTask.originalIndex);
+        gantt.updateTask(targetEpicId);
+        
+        console.log('Link created:', targetTask.text, 'now depends on', sourceTask.text);
+        console.log('  All dependencies:', targetTask.dependency);
+        
+        // Update localStorage
+        var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
+        if (targetTask.originalIndex !== undefined && jiras[targetTask.originalIndex]) {
+            jiras[targetTask.originalIndex].dependency = targetTask.dependency;
+            localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
+        }
+        
+        // Notify parent window
+        window.parent.postMessage({
+            type: 'updateEpicDependency',
+            originalIndex: targetTask.originalIndex,
+            dependency: targetTask.dependency
+        }, '*');
+        
+        // Re-render to show the arrow
+        renderCustomExport();
+    } else {
+        console.log('Link already exists');
+    }
 }
 
-// Remove link function
+// Remove link function - removes all links where this epic is the SOURCE
 function removeQuickLink(epicId) {
-    console.log('Removing link from epic:', epicId);
+    console.log('Removing links where epic is source:', epicId);
     
-    var task = gantt.getTask(epicId);
-    if (!task) {
+    var sourceTask = gantt.getTask(epicId);
+    if (!sourceTask) {
         console.error('Task not found:', epicId);
         return;
     }
     
-    task.dependency = null;
-    gantt.updateTask(epicId);
-    
-    console.log('Link removed from:', task.text);
-    
-    // Update localStorage
     var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
-    if (task.originalIndex !== undefined && jiras[task.originalIndex]) {
-        jiras[task.originalIndex].dependency = null;
+    var removedCount = 0;
+    
+    // Find all tasks that depend on this epic (where this is the source)
+    gantt.eachTask(function(task) {
+        if (task.type !== 'project' && task.dependency !== null && task.dependency !== undefined) {
+            // Handle both array and single value dependencies
+            var deps = Array.isArray(task.dependency) ? task.dependency : [task.dependency];
+            var index = deps.indexOf(sourceTask.originalIndex);
+            
+            if (index !== -1) {
+                console.log('  Removing link from:', task.text);
+                
+                // Remove this specific dependency from the array
+                deps.splice(index, 1);
+                
+                // Update task dependency (null if empty, otherwise the array)
+                task.dependency = deps.length === 0 ? null : deps;
+                gantt.updateTask(task.id);
+                
+                // Update localStorage
+                if (task.originalIndex !== undefined && jiras[task.originalIndex]) {
+                    jiras[task.originalIndex].dependency = task.dependency;
+                }
+                
+                // Notify parent window
+                window.parent.postMessage({
+                    type: 'updateEpicDependency',
+                    originalIndex: task.originalIndex,
+                    dependency: task.dependency
+                }, '*');
+                
+                removedCount++;
+            }
+        }
+    });
+    
+    if (removedCount > 0) {
         localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
+        console.log('Removed', removedCount, 'link(s) from source:', sourceTask.text);
+        
+        // Re-render to remove the arrows
+        renderCustomExport();
+    } else {
+        console.log('No links found where this epic is the source');
     }
-    
-    // Notify parent window
-    window.parent.postMessage({
-        type: 'updateEpicDependency',
-        originalIndex: task.originalIndex,
-        dependency: null
-    }, '*');
-    
-    // Re-render to remove the arrow
-    renderCustomExport();
 }
 
 function saveDependencyLink() {
