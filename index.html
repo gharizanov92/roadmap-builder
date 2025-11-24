@@ -1458,6 +1458,13 @@
         
         .resource-group {
             margin-bottom: 24px;
+            transition: background-color 0.2s;
+            border-radius: 8px;
+        }
+        
+        .resource-group.drag-over {
+            background-color: rgba(0, 122, 255, 0.08);
+            border: 2px dashed #007aff;
         }
         
         .resource-name {
@@ -1466,6 +1473,11 @@
             color: #1a1a1a;
             padding: 8px 0;
             margin-bottom: 8px;
+            cursor: move;
+        }
+        
+        .resource-name:hover {
+            color: #007aff;
         }
         
         .epic-row {
@@ -1474,6 +1486,17 @@
             height: 50px;
             padding-left: 20px;
             border-bottom: 1px solid #f0f0f0;
+            cursor: move;
+            transition: background-color 0.2s;
+        }
+        
+        .epic-row:hover {
+            background-color: rgba(0, 122, 255, 0.05);
+        }
+        
+        .epic-row.drag-over {
+            background-color: rgba(0, 122, 255, 0.1);
+            border-top: 2px solid #007aff;
         }
         
         .epic-name {
@@ -1776,6 +1799,7 @@
         
         .timeline-month {
             position: absolute;
+            height: 100%;
             text-align: center;
             font-size: 12px;
             font-weight: 700;
@@ -2139,10 +2163,12 @@
                             <h2>Roadmap Export View</h2>
                             <div id="debugInfo" style="font-size: 11px; color: #666; margin-left: 12px;"></div>
                             <div class="export-actions">
+                                <button class="btn-close" onclick="toggleTextWrap()"><i class="fas fa-align-left"></i> <span id="wrapToggleText">Wrap Text</span></button>
+                                <button class="btn-close" onclick="zoomOut()"><i class="fas fa-search-minus"></i> Zoom Out</button>
+                                <button class="btn-close" onclick="zoomIn()"><i class="fas fa-search-plus"></i> Zoom In</button>
                                 <button class="btn-close" onclick="reconfigureSprints()"><i class="fas fa-cog"></i> Configure Sprints</button>
                                 <button class="btn-close" onclick="openColorConfigurator()"><i class="fas fa-palette"></i> Configure Colors</button>
-                                <button class="btn-download" onclick="downloadCustomExport()">Download as PNG</button>
-                                <button class="btn-download" onclick="downloadAsSVG()">Download as SVG</button>
+                                <button class="btn-download" onclick="downloadCustomExport()"><i class="fas fa-image"></i> Generate Image</button>
                             </div>
                         </div>
                         <div class="export-content">

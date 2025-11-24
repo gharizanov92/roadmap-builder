@@ -271,7 +271,7 @@ function renderCustomExport(sprintConfig) {
         return;
     }
     
-    // Apply custom ordering from localStorage
+    // Apply custom epic ordering from localStorage
     var epicOrdering = JSON.parse(localStorage.getItem('epic_ordering') || '{}');
     for (var resId in resources) {
         if (epicOrdering[resId]) {
@@ -288,6 +288,24 @@ function renderCustomExport(sprintConfig) {
             });
             resources[resId].epics = orderedEpics;
         }
+    }
+    
+    // Apply custom category ordering from localStorage
+    var categoryOrdering = JSON.parse(localStorage.getItem('category_ordering') || '[]');
+    if (categoryOrdering.length > 0) {
+        var orderedResources = {};
+        categoryOrdering.forEach(function(resId) {
+            if (resources[resId]) {
+                orderedResources[resId] = resources[resId];
+            }
+        });
+        // Add any new resources not in the ordering
+        for (var resId in resources) {
+            if (!orderedResources[resId]) {
+                orderedResources[resId] = resources[resId];
+            }
+        }
+        resources = orderedResources;
     }
     
     // Generate sprints for timeline
@@ -379,7 +397,9 @@ function renderCustomExport(sprintConfig) {
     }
     
     // Calculate scale factor: size everything as if we're showing 2 sprints
-    var scaleFactor = totalDays / twoSprintDays;
+    var baseScaleFactor = totalDays / twoSprintDays;
+    var zoomLevel = getZoomLevel();
+    var scaleFactor = baseScaleFactor * zoomLevel;
     
     // Render left panel
     var leftHTML = '<div class="grid-header">';
@@ -388,9 +408,11 @@ function renderCustomExport(sprintConfig) {
     leftHTML += '<div class="grid-col-estimate">Estimate</div>';
     leftHTML += '</div>';
     
-    for (var resId in resources) {
+    // Use Object.keys to maintain order
+    var resourceIds = Object.keys(resources);
+    resourceIds.forEach(function(resId) {
         var resource = resources[resId];
-        leftHTML += '<div class="resource-group">';
+        leftHTML += '<div class="resource-group" data-resource-id="' + resId + '">';
         leftHTML += '<div class="resource-name">' + resource.name + '</div>';
         
         resource.epics.forEach(function(epic) {
@@ -439,7 +461,7 @@ function renderCustomExport(sprintConfig) {
         });
         
         leftHTML += '</div>';
-    }
+    });
     
     leftPanel.innerHTML = leftHTML;
     
@@ -496,6 +518,15 @@ function renderCustomExport(sprintConfig) {
             sprintEndDate.setDate(sprintEndDate.getDate() + calendarDuration);
             var sprintEndOffset = Math.floor((sprintEndDate - minDate) / (1000 * 60 * 60 * 24));
             
+            // Clamp to visible range
+            sprintStartOffset = Math.max(0, sprintStartOffset);
+            sprintEndOffset = Math.min(totalDays, sprintEndOffset);
+            
+            // Skip if sprint is completely outside the visible range
+            if (sprintStartOffset >= totalDays || sprintEndOffset <= 0) {
+                return;
+            }
+            
             var leftPercent = getAdjustedPosition(sprintStartOffset);
             var rightPercent = getAdjustedPosition(sprintEndOffset);
             var widthPercent = rightPercent - leftPercent;
@@ -544,9 +575,10 @@ function renderCustomExport(sprintConfig) {
         });
     }
     
-    for (var resId in resources) {
+    // Use Object.keys to maintain order
+    resourceIds.forEach(function(resId) {
         var resource = resources[resId];
-        rightHTML += '<div class="timeline-resource-group">';
+        rightHTML += '<div class="timeline-resource-group" data-resource-id="' + resId + '">';
         rightHTML += '<div class="timeline-resource-name">' + resource.name + '</div>';
         
         resource.epics.forEach(function(epic) {
@@ -594,7 +626,7 @@ function renderCustomExport(sprintConfig) {
         });
         
         rightHTML += '</div>';
-    }
+    });
     
     rightHTML += '</div>';
     rightHTML += '</div>'; // Close timeline-wrapper
@@ -603,6 +635,7 @@ function renderCustomExport(sprintConfig) {
     
     // Setup drag and drop for reordering
     setupDragAndDrop();
+    setupCategoryDragAndDrop();
     
     // Setup resize handles for epic pills
     setupResizeHandles(minDate, totalDays, sprintConfig);
@@ -612,6 +645,16 @@ function renderCustomExport(sprintConfig) {
     
     // Setup window resize listener to refresh arrows
     setupResizeListener();
+    
+    // Apply text wrap state
+    getTextWrapState();
+    applyTextWrap();
+    
+    // Update toggle button text
+    var toggleText = document.getElementById('wrapToggleText');
+    if (toggleText) {
+        toggleText.textContent = textWrapEnabled ? 'Unwrap Text' : 'Wrap Text';
+    }
 }
 
 var resizeTimeout;
@@ -1103,13 +1146,30 @@ function setupDragAndDrop() {
             e.preventDefault();
             
             if (this !== draggedElement && this.getAttribute('data-resource-id') === draggedResourceId) {
-                var targetEpicId = this.getAttribute('data-epic-id');
+                var targetEpicId = parseInt(this.getAttribute('data-epic-id'));
                 var resourceId = this.getAttribute('data-resource-id');
+                draggedEpicId = parseInt(draggedEpicId);
+                
+                console.log('Drop event:', {
+                    draggedEpicId: draggedEpicId,
+                    targetEpicId: targetEpicId,
+                    resourceId: resourceId
+                });
                 
                 // Update ordering in localStorage
                 var epicOrdering = JSON.parse(localStorage.getItem('epic_ordering') || '{}');
                 if (!epicOrdering[resourceId]) {
                     epicOrdering[resourceId] = [];
+                }
+                
+                // Build complete list of epic IDs for this resource if not exists
+                if (epicOrdering[resourceId].length === 0) {
+                    document.querySelectorAll('.epic-row[data-resource-id="' + resourceId + '"]').forEach(function(r) {
+                        var id = parseInt(r.getAttribute('data-epic-id'));
+                        if (!epicOrdering[resourceId].includes(id)) {
+                            epicOrdering[resourceId].push(id);
+                        }
+                    });
                 }
                 
                 // Remove dragged epic from current position
@@ -1125,7 +1185,116 @@ function setupDragAndDrop() {
                     epicOrdering[resourceId].splice(targetIndex, 0, draggedEpicId);
                 }
                 
+                console.log('New ordering:', epicOrdering[resourceId]);
+                
                 localStorage.setItem('epic_ordering', JSON.stringify(epicOrdering));
+                renderCustomExport();
+            }
+            
+            return false;
+        });
+    });
+}
+
+function setupCategoryDragAndDrop() {
+    var draggedCategory = null;
+    var draggedResourceId = null;
+    
+    document.querySelectorAll('.resource-name').forEach(function(nameElement) {
+        nameElement.setAttribute('draggable', 'true');
+        
+        nameElement.addEventListener('dragstart', function(e) {
+            e.stopPropagation(); // Prevent bubbling to epic-row
+            draggedCategory = this.parentElement; // The resource-group
+            draggedResourceId = draggedCategory.getAttribute('data-resource-id');
+            draggedCategory.style.opacity = '0.5';
+            console.log('Dragging category:', draggedResourceId);
+        });
+        
+        nameElement.addEventListener('dragend', function(e) {
+            if (draggedCategory) {
+                draggedCategory.style.opacity = '';
+            }
+            document.querySelectorAll('.resource-group').forEach(function(g) {
+                g.classList.remove('drag-over');
+            });
+        });
+    });
+    
+    // Add drop handlers to resource groups
+    document.querySelectorAll('.resource-group').forEach(function(group) {
+        group.addEventListener('dragover', function(e) {
+            if (draggedCategory) {
+                e.preventDefault();
+                // Add drag-over class during dragover
+                if (this !== draggedCategory) {
+                    this.classList.add('drag-over');
+                }
+                return false;
+            }
+        });
+        
+        group.addEventListener('dragenter', function(e) {
+            if (draggedCategory && this !== draggedCategory) {
+                e.preventDefault();
+            }
+        });
+        
+        group.addEventListener('dragleave', function(e) {
+            // Only remove if we're actually leaving the group (not entering a child)
+            if (draggedCategory && e.target === this) {
+                this.classList.remove('drag-over');
+            }
+        });
+        
+        group.addEventListener('drop', function(e) {
+            if (!draggedCategory) return;
+            e.stopPropagation();
+            e.preventDefault();
+            
+            if (this !== draggedCategory) {
+                var targetResourceId = this.getAttribute('data-resource-id');
+                
+                console.log('Drop category event:', {
+                    draggedResourceId: draggedResourceId,
+                    targetResourceId: targetResourceId
+                });
+                
+                // Update category ordering in localStorage
+                var categoryOrdering = JSON.parse(localStorage.getItem('category_ordering') || '[]');
+                
+                // Build complete list if empty
+                if (categoryOrdering.length === 0) {
+                    document.querySelectorAll('.resource-group').forEach(function(g) {
+                        var id = g.getAttribute('data-resource-id');
+                        if (!categoryOrdering.includes(id)) {
+                            categoryOrdering.push(id);
+                        }
+                    });
+                }
+                
+                // Remove dragged category from current position
+                categoryOrdering = categoryOrdering.filter(function(id) {
+                    return id !== draggedResourceId;
+                });
+                
+                // Insert at new position
+                var targetIndex = categoryOrdering.indexOf(targetResourceId);
+                if (targetIndex === -1) {
+                    categoryOrdering.push(draggedResourceId);
+                } else {
+                    categoryOrdering.splice(targetIndex, 0, draggedResourceId);
+                }
+                
+                console.log('New category ordering:', categoryOrdering);
+                console.log('Saving and re-rendering...');
+                
+                localStorage.setItem('category_ordering', JSON.stringify(categoryOrdering));
+                
+                // Reset drag state before re-rendering
+                draggedCategory = null;
+                draggedResourceId = null;
+                
                 renderCustomExport();
             }
             
@@ -1753,4 +1922,80 @@ function saveColorConfiguration() {
     
     // Refresh the view to apply new colors
     renderCustomExport();
+}
+
+
+// Zoom functionality
+var zoomLevel = 1.0; // Default zoom level (1.0 = 100%)
+
+function zoomIn() {
+    zoomLevel = Math.min(zoomLevel + 0.2, 3.0); // Max 300%
+    applyZoom();
+}
+
+function zoomOut() {
+    zoomLevel = Math.max(zoomLevel - 0.2, 0.4); // Min 40%
+    applyZoom();
+}
+
+function applyZoom() {
+    localStorage.setItem('gantt_zoom_level', zoomLevel.toString());
+    renderCustomExport();
+}
+
+function getZoomLevel() {
+    var stored = localStorage.getItem('gantt_zoom_level');
+    if (stored) {
+        zoomLevel = parseFloat(stored);
+    }
+    return zoomLevel;
+}
+
+
+// Text wrap toggle functionality
+var textWrapEnabled = false;
+
+function toggleTextWrap() {
+    textWrapEnabled = !textWrapEnabled;
+    localStorage.setItem('gantt_text_wrap', textWrapEnabled.toString());
+    
+    var toggleText = document.getElementById('wrapToggleText');
+    if (toggleText) {
+        toggleText.textContent = textWrapEnabled ? 'Unwrap Text' : 'Wrap Text';
+    }
+    
+    applyTextWrap();
+}
+
+function applyTextWrap() {
+    var epicNames = document.querySelectorAll('.epic-name');
+    epicNames.forEach(function(nameElement) {
+        if (textWrapEnabled) {
+            nameElement.style.whiteSpace = 'normal';
+            nameElement.style.overflow = 'visible';
+            nameElement.style.textOverflow = 'clip';
+            nameElement.style.lineHeight = '1.3';
+            nameElement.style.maxHeight = '50px'; // Keep row height fixed
+            nameElement.style.display = '-webkit-box';
+            nameElement.style.webkitLineClamp = '3';
+            nameElement.style.webkitBoxOrient = 'vertical';
+        } else {
+            nameElement.style.whiteSpace = 'nowrap';
+            nameElement.style.overflow = 'hidden';
+            nameElement.style.textOverflow = 'ellipsis';
+            nameElement.style.lineHeight = '50px';
+            nameElement.style.maxHeight = '';
+            nameElement.style.display = '';
+            nameElement.style.webkitLineClamp = '';
+            nameElement.style.webkitBoxOrient = '';
+        }
+    });
+}
+
+function getTextWrapState() {
+    var stored = localStorage.getItem('gantt_text_wrap');
+    if (stored) {
+        textWrapEnabled = stored === 'true';
+    }
+    return textWrapEnabled;
 }
