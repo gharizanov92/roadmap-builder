@@ -1,0 +1,19 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Deployment files (not needed for GitHub Pages)
+deploy.sh
+deploy-instructions.md
+nginx-config.conf
+gantt-app.zip
+
+# Node modules (if you add any)
+node_modules/
+
+# Logs
+*.log

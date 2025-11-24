@@ -250,7 +250,6 @@ function renderCustomExport(sprintConfig) {
             resourceIndex++;
         } else if (task.parent) {
             if (resources[task.parent]) {
-                console.log('Epic:', task.text, 'Progress:', task.progress, 'as %:', Math.round(task.progress * 100));
                 resources[task.parent].epics.push(task);
             }
         }
@@ -281,6 +280,7 @@ function renderCustomExport(sprintConfig) {
     // Apply custom epic ordering from localStorage
     var epicOrdering = JSON.parse(localStorage.getItem('epic_ordering') || '{}');
     for (var resId in resources) {
+        if (resId === '_orderedIds') continue; // Skip internal property
         if (epicOrdering[resId]) {
             var orderedEpics = [];
             epicOrdering[resId].forEach(function(epicId) {
@@ -302,22 +302,35 @@ function renderCustomExport(sprintConfig) {
     console.log('Applying category ordering:', categoryOrdering);
     console.log('Resources before ordering:', Object.keys(resources));
     
+    // Create ordered array of resource IDs (don't rely on object key order)
+    var orderedResourceIds = [];
+    
     if (categoryOrdering.length > 0) {
-        var orderedResources = {};
+        // Add resources in the specified order
         categoryOrdering.forEach(function(resId) {
-            if (resources[resId]) {
-                orderedResources[resId] = resources[resId];
+            var key = String(resId);
+            if (resources[key]) {
+                orderedResourceIds.push(key);
+                console.log('  Ordered resource:', key, '→', resources[key].name);
             }
         });
         // Add any new resources not in the ordering
         for (var resId in resources) {
-            if (!orderedResources[resId]) {
-                orderedResources[resId] = resources[resId];
+            if (resId === '_orderedIds') continue; // Skip internal property
+            if (orderedResourceIds.indexOf(resId) === -1) {
+                orderedResourceIds.push(resId);
+                console.log('  Added unordered resource:', resId, '→', resources[resId].name);
             }
         }
-        resources = orderedResources;
-        console.log('Resources after ordering:', Object.keys(resources));
+    } else {
+        // No ordering specified, use natural order
+        orderedResourceIds = Object.keys(resources);
     }
+    
+    console.log('Final ordered resource IDs:', orderedResourceIds);
+    
+    // Store the ordered IDs for use during rendering
+    resources._orderedIds = orderedResourceIds;
     
     // Generate sprints for timeline
     var sprints = [];
@@ -358,8 +371,6 @@ function renderCustomExport(sprintConfig) {
             sprintNum--;
         }
         
-        console.log('First sprint:', sprintNum, 'starts on:', sprintDate.toISOString().split('T')[0]);
-        
         while (sprintDate < maxDate) {
             sprints.push({
                 number: sprintNum,
@@ -367,7 +378,6 @@ function renderCustomExport(sprintConfig) {
                 label: 'Sprint ' + sprintNum,
                 workingDays: sprintConfig.workingDuration || getWorkingDays(sprintDuration)
             });
-            console.log('Added Sprint', sprintNum, 'starting:', sprintDate.toISOString().split('T')[0]);
             sprintDate.setDate(sprintDate.getDate() + sprintDuration);
             sprintNum++;
         }
@@ -392,6 +402,7 @@ function renderCustomExport(sprintConfig) {
     if (debugInfo) {
         var epicCount = 0;
         for (var resId in resources) {
+            if (resId === '_orderedIds') continue; // Skip internal property
             epicCount += resources[resId].epics.length;
         }
         debugInfo.textContent = 'Date Range: ' + minDate.toISOString().split('T')[0] + ' to ' + maxDate.toISOString().split('T')[0] + ' (' + totalDays + ' days) | ' + epicCount + ' epics';
@@ -400,6 +411,7 @@ function renderCustomExport(sprintConfig) {
     // Log epic details for debugging
     console.log('=== Epic Details ===');
     for (var resId in resources) {
+        if (resId === '_orderedIds') continue; // Skip internal property
         resources[resId].epics.forEach(function(epic) {
             var epicEnd = new Date(epic.start_date);
             epicEnd.setDate(epicEnd.getDate() + epic.duration);
@@ -418,8 +430,8 @@ function renderCustomExport(sprintConfig) {
     leftHTML += '<div class="grid-col-estimate">Estimate</div>';
     leftHTML += '</div>';
     
-    // Use Object.keys to maintain order
-    var resourceIds = Object.keys(resources);
+    // Use the ordered IDs array instead of Object.keys
+    var resourceIds = resources._orderedIds || Object.keys(resources);
     resourceIds.forEach(function(resId, index) {
         var resource = resources[resId];
         leftHTML += '<div class="resource-group" data-resource-id="' + resId + '">';
@@ -490,10 +502,6 @@ function renderCustomExport(sprintConfig) {
         if (e.target.classList.contains('epic-link-btn') || e.target.closest('.epic-link-btn')) {
             var button = e.target.classList.contains('epic-link-btn') ? e.target : e.target.closest('.epic-link-btn');
             var epicId = parseInt(button.getAttribute('data-epic-id'));
-            console.log('Link button clicked for epic:', epicId);
-            console.log('epicId check:', !!epicId);
-            console.log('function check:', typeof openDependencyModal);
-            console.log('Combined check:', epicId && typeof openDependencyModal === 'function');
             
             if (epicId && typeof openDependencyModal === 'function') {
                 console.log('Calling openDependencyModal...');
@@ -715,7 +723,7 @@ function renderDependencyArrows() {
     canvas.style.top = '0';
     canvas.style.left = '0';
     canvas.style.pointerEvents = 'none';
-    canvas.style.zIndex = '1';
+    canvas.style.zIndex = '10'; // Higher z-index to appear above other elements
     
     // Set canvas size to match timeline body
     var rect = timelineBody.getBoundingClientRect();
@@ -745,7 +753,6 @@ function renderDependencyArrows() {
     // Get dependencies from gantt data
     gantt.eachTask(function(task) {
         if (task.type !== 'project' && task.dependency !== null && task.dependency !== undefined) {
-            console.log('Drawing arrow for task:', task.text, 'originalIndex:', task.originalIndex, 'dependency originalIndex:', task.dependency);
             
             // Find the source and target pills
             var targetPill = pillMap[task.id];
@@ -758,16 +765,9 @@ function renderDependencyArrows() {
                 }
             });
             
-            if (sourceTask) {
-                console.log('  -> Found source task:', sourceTask.text, 'ID:', sourceTask.id, 'originalIndex:', sourceTask.originalIndex);
-            } else {
-                console.warn('  -> Source task not found for originalIndex:', task.dependency);
-            }
-            
             if (sourceTask && targetPill) {
                 var sourcePill = pillMap[sourceTask.id];
                 if (sourcePill) {
-                    console.log('  -> Drawing arrow from', sourceTask.text, 'to', task.text);
                     drawArrowOnCanvas(ctx, sourcePill, targetPill, timelineBody);
                 } else {
                     console.warn('  -> Source pill not found for task ID:', sourceTask.id);
@@ -995,146 +995,6 @@ function reconfigureSprints() {
     openCustomExport();
 }
 
-function downloadAsSVG() {
-    var container = document.getElementById('exportContainer');
-    var leftPanel = document.getElementById('exportLeft');
-    var rightPanel = document.getElementById('exportRight');
-    var timelineWrapper = document.querySelector('.timeline-wrapper');
-    
-    // Hide epic-link-btn buttons
-    var epicLinkButtons = document.querySelectorAll('.epic-link-btn');
-    epicLinkButtons.forEach(function(btn) {
-        btn.style.display = 'none';
-    });
-    
-    // Calculate dimensions
-    var leftWidth = leftPanel.offsetWidth;
-    var timelineWidth = timelineWrapper ? timelineWrapper.offsetWidth : 0;
-    var fullWidth = leftWidth + timelineWidth + 48; // Include padding
-    var fullHeight = container.offsetHeight;
-    
-    // Create SVG
-    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', fullWidth);
-    svg.setAttribute('height', fullHeight);
-    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    
-    // Add white background
-    var background = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    background.setAttribute('width', fullWidth);
-    background.setAttribute('height', fullHeight);
-    background.setAttribute('fill', '#ffffff');
-    svg.appendChild(background);
-    
-    // Create foreignObject for left panel
-    var leftFO = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    leftFO.setAttribute('x', 0);
-    leftFO.setAttribute('y', 0);
-    leftFO.setAttribute('width', leftWidth);
-    leftFO.setAttribute('height', fullHeight);
-    
-    var leftClone = leftPanel.cloneNode(true);
-    leftClone.style.width = leftWidth + 'px';
-    leftClone.style.height = fullHeight + 'px';
-    leftFO.appendChild(leftClone);
-    svg.appendChild(leftFO);
-    
-    // Create foreignObject for right panel (timeline)
-    var rightFO = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    rightFO.setAttribute('x', leftWidth + 24);
-    rightFO.setAttribute('y', 0);
-    rightFO.setAttribute('width', timelineWidth);
-    rightFO.setAttribute('height', fullHeight);
-    
-    var rightClone = rightPanel.cloneNode(true);
-    rightClone.style.width = timelineWidth + 'px';
-    rightClone.style.height = fullHeight + 'px';
-    rightClone.style.overflow = 'visible';
-    rightFO.appendChild(rightClone);
-    svg.appendChild(rightFO);
-    
-    // Convert canvas arrows to SVG
-    var arrowCanvas = document.getElementById('arrowCanvas');
-    if (arrowCanvas) {
-        var timelineBodyRect = document.querySelector('.timeline-body').getBoundingClientRect();
-        var exportContentRect = document.querySelector('.export-content').getBoundingClientRect();
-        
-        // Calculate position of canvas relative to export content
-        var scrollLeft = document.querySelector('.export-content').scrollLeft || 0;
-        var scrollTop = document.querySelector('.export-content').scrollTop || 0;
-        
-        var canvasX = timelineBodyRect.left - exportContentRect.left + scrollLeft;
-        var canvasY = timelineBodyRect.top - exportContentRect.top + scrollTop;
-        
-        // Convert canvas to image and embed in SVG
-        var canvasImage = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        canvasImage.setAttribute('x', canvasX);
-        canvasImage.setAttribute('y', canvasY);
-        canvasImage.setAttribute('width', arrowCanvas.width);
-        canvasImage.setAttribute('height', arrowCanvas.height);
-        canvasImage.setAttribute('href', arrowCanvas.toDataURL('image/png'));
-        
-        svg.appendChild(canvasImage);
-    }
-    
-    // Add embedded styles
-    var style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-    style.textContent = `
-        .resource-group { margin-bottom: 24px; }
-        .resource-name { font-size: 15px; font-weight: 700; color: #1a1a1a; padding: 8px 0; margin-bottom: 8px; }
-        .epic-row { display: flex; align-items: center; height: 50px; padding-left: 20px; border-bottom: 1px solid #f0f0f0; }
-        .epic-name { flex: 1; font-size: 14px; color: #333; padding-right: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 50px; }
-        .progress-circle-container { width: 120px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .progress-circle { width: 36px; height: 36px; position: relative; }
-        .progress-circle svg { transform: rotate(-90deg); }
-        .progress-circle-bg { fill: none; stroke: #e0e0e0; stroke-width: 3; }
-        .progress-circle-fill { fill: none; stroke-width: 3; stroke-linecap: round; }
-        .progress-text { font-size: 11px; font-weight: 600; color: #666; }
-        .duration-text { width: 100px; flex-shrink: 0; text-align: right; font-size: 13px; color: #666; font-weight: 500; }
-        .grid-header { display: flex; padding: 12px 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 16px; }
-        .grid-col-task { flex: 1; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-        .grid-col-progress { width: 120px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
-        .grid-col-estimate { width: 100px; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; }
-        .timeline-header-wrapper { border-bottom: 2px solid #e0e0e0; margin-bottom: 16px; }
-        .timeline-header { position: relative; height: 40px; }
-        .timeline-month { position: absolute; text-align: center; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: center; }
-        .timeline-body { position: relative; }
-        .sprint-background { position: absolute; top: 0; bottom: 0; background: rgba(102, 126, 234, 0.03); z-index: 1; pointer-events: none; }
-        .weekend-background { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.02); z-index: 2; pointer-events: none; }
-        .sprint-separator { position: absolute; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, rgba(102, 126, 234, 0.3) 0%, rgba(102, 126, 234, 0.15) 50%, rgba(102, 126, 234, 0.3) 100%); z-index: 5; pointer-events: none; }
-        .timeline-resource-group { margin-bottom: 24px; }
-        .timeline-resource-name { font-size: 15px; font-weight: 700; color: #1a1a1a; padding: 8px 0; margin-bottom: 8px; }
-        .timeline-row { position: relative; height: 50px; border-bottom: 1px solid #f0f0f0; z-index: 1; }
-        .epic-pill { position: absolute; height: 32px; top: 9px; border-radius: 16px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: white; font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); overflow: hidden; z-index: 10; }
-        .epic-pill-progress-bg { position: absolute; left: 0; top: 0; height: 100%; background: rgba(255, 255, 255, 0.25); border-radius: 16px; pointer-events: none; }
-        .epic-pill-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 1; }
-        .epic-pill-progress { flex-shrink: 0; background: rgba(255, 255, 255, 0.25); padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; position: relative; z-index: 1; opacity: 1; }
-        * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    `;
-    svg.insertBefore(style, svg.firstChild);
-    
-    // Serialize SVG
-    var serializer = new XMLSerializer();
-    var svgString = serializer.serializeToString(svg);
-    
-    // Add XML declaration and DOCTYPE
-    svgString = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgString;
-    
-    // Create blob and download
-    var blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'roadmap-export-' + new Date().toISOString().split('T')[0] + '.svg';
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    // Show epic-link-btn buttons again
-    epicLinkButtons.forEach(function(btn) {
-        btn.style.display = '';
-    });
-}
-
 function setupDragAndDrop() {
     var draggedElement = null;
     var draggedEpicId = null;
@@ -1178,12 +1038,7 @@ function setupDragAndDrop() {
                 var targetEpicId = parseInt(this.getAttribute('data-epic-id'));
                 var resourceId = this.getAttribute('data-resource-id');
                 draggedEpicId = parseInt(draggedEpicId);
-                
-                console.log('Drop event:', {
-                    draggedEpicId: draggedEpicId,
-                    targetEpicId: targetEpicId,
-                    resourceId: resourceId
-                });
+            
                 
                 // Update ordering in localStorage
                 var epicOrdering = JSON.parse(localStorage.getItem('epic_ordering') || '{}');
@@ -1214,8 +1069,6 @@ function setupDragAndDrop() {
                     epicOrdering[resourceId].splice(targetIndex, 0, draggedEpicId);
                 }
                 
-                console.log('New ordering:', epicOrdering[resourceId]);
-                
                 localStorage.setItem('epic_ordering', JSON.stringify(epicOrdering));
                 renderCustomExport();
             }
@@ -1237,11 +1090,6 @@ function setupCategoryDragAndDrop() {
             draggedCategory = this.parentElement; // The resource-group
             draggedResourceId = draggedCategory.getAttribute('data-resource-id');
             draggedCategory.style.opacity = '0.5';
-            console.log('Dragging category:', {
-                resourceId: draggedResourceId,
-                categoryElement: draggedCategory,
-                nameElement: this
-            });
         });
         
         nameElement.addEventListener('dragend', function(e) {
@@ -1473,16 +1321,10 @@ function setupResizeHandles(minDate, totalDays, sprintConfig) {
             var finalStartDate = new Date(task.start_date);
             var finalEndDate = new Date(finalStartDate);
             finalEndDate.setDate(finalEndDate.getDate() + task.duration);
-            
-            console.log('Before update - Task:', task.text, 'Start:', task.start_date, 'Duration:', task.duration);
-            
+
             // Update gantt task
             gantt.updateTask(epicId);
-            
-            // Verify the update
-            var updatedTask = gantt.getTask(epicId);
-            console.log('After update - Task:', updatedTask.text, 'Start:', updatedTask.start_date, 'Duration:', updatedTask.duration);
-            
+
             // Update localStorage FIRST before re-rendering
             var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
             if (task.originalIndex !== undefined && jiras[task.originalIndex]) {
@@ -1533,20 +1375,16 @@ var allDependencyItems = [];
 function migrateDependenciesToIds() {
     // Dependencies are now stored as originalIndex values, which are stable
     // No migration needed - originalIndex values don't change when reordering
-    console.log('Dependency system uses originalIndex - no migration needed');
 }
 
 function openDependencyModal(epicId) {
     try {
-        console.log('=== openDependencyModal START ===');
-        console.log('epicId:', epicId);
         
         currentDependencyEpicId = epicId;
         selectedDependencyIndex = null;
         allDependencyItems = [];
         
         var modal = document.getElementById('dependencyModal');
-        console.log('modal found:', !!modal);
     var list = document.getElementById('dependencyList');
     var removeBtn = document.getElementById('removeDependencyBtn');
     var searchInput = document.getElementById('dependencySearch');
@@ -1567,9 +1405,7 @@ function openDependencyModal(epicId) {
     }
     
     var currentDependency = currentTask.dependency;
-    
-    console.log('Opening dependency modal for epic:', epicId, currentTask);
-    console.log('Current dependency ID:', currentDependency);
+
     
     // Show/hide remove button
     if (currentDependency !== null && currentDependency !== undefined) {
@@ -1622,19 +1458,14 @@ function openDependencyModal(epicId) {
                 resourceName: resourceName
             });
             
-            console.log('Added epic:', displayName, 'originalIndex:', task.originalIndex, 'in resource:', resourceName, 
-                       'isSelected:', isSelected, '(comparing', task.originalIndex, '===', currentDependency, ')');
         }
     });
-    
-    console.log('Epics by resource:', epicsByResource);
-    console.log('All dependency items:', allDependencyItems);
+
     
     // Render grouped list
     renderDependencyList(epicsByResource);
     
     modal.classList.add('active');
-    console.log('=== openDependencyModal END ===');
     } catch (error) {
         console.error('Error in openDependencyModal:', error);
         console.error('Stack trace:', error.stack);
@@ -1657,16 +1488,12 @@ function renderDependencyList(epicsByResource) {
     // Sort resources alphabetically
     var sortedResources = Object.keys(epicsByResource).sort();
     
-    console.log('Sorted resources:', sortedResources);
-    console.log('Number of resources:', sortedResources.length);
-    
     if (sortedResources.length === 0) {
         list.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No other epics available to link</div>';
         return;
     }
     
     sortedResources.forEach(function(resourceName) {
-        console.log('Rendering resource:', resourceName, 'with', epicsByResource[resourceName].length, 'epics');
         
         var group = document.createElement('div');
         group.className = 'dependency-group';
@@ -1676,9 +1503,7 @@ function renderDependencyList(epicsByResource) {
         header.textContent = resourceName;
         group.appendChild(header);
         
-        epicsByResource[resourceName].forEach(function(epicData) {
-            console.log('  - Adding epic:', epicData.displayName, 'ID:', epicData.epicId, 'isSelected:', epicData.isSelected);
-            
+        epicsByResource[resourceName].forEach(function(epicData) {            
             var item = document.createElement('div');
             item.className = 'dependency-item' + (epicData.isSelected ? ' selected' : '');
             item.setAttribute('data-epic-id', epicData.epicId);
@@ -1690,17 +1515,11 @@ function renderDependencyList(epicsByResource) {
             
             item.innerHTML = '<div class="dependency-item-title">' + epicData.displayName + '</div>';
             
-            if (epicData.isSelected) {
-                console.log('    -> This epic should be selected!');
-            }
-            
             group.appendChild(item);
         });
         
         list.appendChild(group);
     });
-    
-    console.log('Finished rendering dependency list');
 }
 
 function filterDependencies() {
@@ -1755,14 +1574,11 @@ function selectDependency(epicId) {
     
     selectedDependencyIndex = epicId;
     
-    console.log('Selected dependency epic ID:', epicId, 'originalIndex:', selectedTask.originalIndex);
-    
     // Update UI
     document.querySelectorAll('.dependency-item').forEach(function(item) {
         // Convert both to strings for comparison since getAttribute returns string
         if (item.getAttribute('data-epic-id') === String(epicId)) {
             item.classList.add('selected');
-            console.log('Selected item:', item.querySelector('.dependency-item-title').textContent);
         } else {
             item.classList.remove('selected');
         }
@@ -1783,14 +1599,6 @@ function saveDependencyLink() {
         // This is stable and won't change when reordering
         task.dependency = targetTask.originalIndex;
         gantt.updateTask(currentDependencyEpicId);
-        
-        console.log('Saving dependency link:', {
-            fromEpicId: currentDependencyEpicId,
-            fromOriginalIndex: task.originalIndex,
-            toEpicId: selectedDependencyIndex,
-            toOriginalIndex: targetTask.originalIndex,
-            savedDependency: task.dependency
-        });
         
         // Notify parent window to update the issues page
         window.parent.postMessage({
@@ -2086,16 +1894,20 @@ function getTextWrapState() {
 
 // Category reordering with buttons
 function moveCategoryUp(resourceId) {
-    console.log('Moving category up:', resourceId);
+    console.log('Moving category up:', resourceId, 'type:', typeof resourceId);
+    
+    // Convert to string for consistent comparison
+    resourceId = String(resourceId);
     
     // Get current resource order from the DOM
     var resourceGroups = document.querySelectorAll('.resource-group');
     var resourceIds = [];
     resourceGroups.forEach(function(g) {
-        resourceIds.push(g.getAttribute('data-resource-id'));
+        resourceIds.push(String(g.getAttribute('data-resource-id')));
     });
     
     console.log('Current order:', resourceIds);
+    console.log('Looking for:', resourceId);
     
     var currentIndex = resourceIds.indexOf(resourceId);
     console.log('Current index:', currentIndex);
@@ -2109,20 +1921,26 @@ function moveCategoryUp(resourceId) {
         console.log('New order:', resourceIds);
         localStorage.setItem('category_ordering', JSON.stringify(resourceIds));
         renderCustomExport();
+    } else {
+        console.warn('Cannot move up - already at top or not found');
     }
 }
 
 function moveCategoryDown(resourceId) {
-    console.log('Moving category down:', resourceId);
+    console.log('Moving category down:', resourceId, 'type:', typeof resourceId);
+    
+    // Convert to string for consistent comparison
+    resourceId = String(resourceId);
     
     // Get current resource order from the DOM
     var resourceGroups = document.querySelectorAll('.resource-group');
     var resourceIds = [];
     resourceGroups.forEach(function(g) {
-        resourceIds.push(g.getAttribute('data-resource-id'));
+        resourceIds.push(String(g.getAttribute('data-resource-id')));
     });
     
     console.log('Current order:', resourceIds);
+    console.log('Looking for:', resourceId);
     
     var currentIndex = resourceIds.indexOf(resourceId);
     console.log('Current index:', currentIndex);
@@ -2136,5 +1954,7 @@ function moveCategoryDown(resourceId) {
         console.log('New order:', resourceIds);
         localStorage.setItem('category_ordering', JSON.stringify(resourceIds));
         renderCustomExport();
+    } else {
+        console.warn('Cannot move down - already at bottom or not found');
     }
 }
