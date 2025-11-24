@@ -468,13 +468,26 @@ function renderCustomExport(sprintConfig) {
             var buttonColor = hasDependency ? circleColor : '#999';
             
             leftHTML += '<div class="epic-row" draggable="true" data-epic-id="' + epic.id + '" data-resource-id="' + resId + '">';
-            leftHTML += '<button class="epic-link-btn' + (hasDependency ? ' has-dependency' : '') + '" data-epic-id="' + epic.id + '" data-category-color="' + circleColor + '" title="Link prerequisite epic" style="--category-color: ' + circleColor + '; color: ' + buttonColor + ';">';
+            
+            // Remove link button (only shown if has dependency)
+            if (hasDependency) {
+                leftHTML += '<button class="epic-remove-link-btn" data-epic-id="' + epic.id + '" title="Remove link">';
+                leftHTML += '<i class="fas fa-times"></i>';
+                leftHTML += '</button>';
+            } else {
+                // Empty space to maintain layout
+                leftHTML += '<span class="epic-remove-link-placeholder"></span>';
+            }
+            
+            // Link button
+            leftHTML += '<button class="epic-link-btn' + (hasDependency ? ' has-dependency' : '') + '" data-epic-id="' + epic.id + '" data-category-color="' + circleColor + '" title="Quick link: Select as prerequisite" style="--category-color: ' + circleColor + '; color: ' + buttonColor + ';">';
             leftHTML += '<svg width="24" height="16" viewBox="0 0 24 16" fill="none">';
             leftHTML += '<circle cx="4" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>';
             leftHTML += '<line x1="7" y1="8" x2="17" y2="8" stroke="currentColor" stroke-width="1.5"/>';
             leftHTML += '<path d="M14 5 L17 8 L14 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
             leftHTML += '</svg>';
             leftHTML += '</button>';
+            
             leftHTML += '<div class="epic-name" data-epic-id="' + epic.id + '" onclick="makeEditable(this)">' + displayName + '</div>';
             leftHTML += '<div class="progress-circle-container">';
             leftHTML += '<div class="progress-circle">';
@@ -497,17 +510,61 @@ function renderCustomExport(sprintConfig) {
     
     leftPanel.innerHTML = leftHTML;
     
-    // Setup event delegation for link buttons
+    // Setup event delegation for link buttons with two-click linking
+    var linkingMode = false;
+    var sourceEpicId = null;
+    
     leftPanel.addEventListener('click', function(e) {
+        // Handle remove link button
+        if (e.target.classList.contains('epic-remove-link-btn') || e.target.closest('.epic-remove-link-btn')) {
+            var button = e.target.classList.contains('epic-remove-link-btn') ? e.target : e.target.closest('.epic-remove-link-btn');
+            var epicId = parseInt(button.getAttribute('data-epic-id'));
+            removeQuickLink(epicId);
+            return;
+        }
+        
+        // Handle link button
         if (e.target.classList.contains('epic-link-btn') || e.target.closest('.epic-link-btn')) {
             var button = e.target.classList.contains('epic-link-btn') ? e.target : e.target.closest('.epic-link-btn');
             var epicId = parseInt(button.getAttribute('data-epic-id'));
             
-            if (epicId && typeof openDependencyModal === 'function') {
-                console.log('Calling openDependencyModal...');
-                openDependencyModal(epicId);
+            if (!linkingMode) {
+                // First click: Select source epic (the prerequisite)
+                sourceEpicId = epicId;
+                linkingMode = true;
+                
+                // Visual feedback: highlight selected as source, others as targets
+                document.querySelectorAll('.epic-link-btn').forEach(function(btn) {
+                    var btnEpicId = parseInt(btn.getAttribute('data-epic-id'));
+                    if (btnEpicId === epicId) {
+                        btn.classList.add('linking-source');
+                        btn.title = 'Source selected - now click what depends on this';
+                    } else {
+                        btn.classList.add('linking-target-mode');
+                        btn.title = 'Click to make this depend on the source';
+                    }
+                });
+                
+                console.log('Linking mode: Select what depends on epic', epicId);
             } else {
-                console.error('Cannot open dependency modal - epicId:', epicId, 'function exists:', typeof openDependencyModal);
+                // Second click: Select target epic (the one that will depend on source)
+                var targetEpicId = epicId;
+                
+                if (targetEpicId === sourceEpicId) {
+                    // Clicked same epic - cancel
+                    console.log('Cancelled - same epic clicked');
+                } else {
+                    // Create the link: target depends on source
+                    createQuickLink(targetEpicId, sourceEpicId);
+                }
+                
+                // Reset linking mode
+                linkingMode = false;
+                sourceEpicId = null;
+                document.querySelectorAll('.epic-link-btn').forEach(function(btn) {
+                    btn.classList.remove('linking-source', 'linking-target-mode');
+                    btn.title = 'Quick link: Select as prerequisite';
+                });
             }
         }
     });
@@ -1587,6 +1644,76 @@ function selectDependency(epicId) {
             item.classList.remove('selected');
         }
     });
+}
+
+// Quick link function for two-click linking
+function createQuickLink(targetEpicId, sourceEpicId) {
+    console.log('Creating link:', targetEpicId, '→', sourceEpicId);
+    
+    var targetTask = gantt.getTask(targetEpicId);
+    var sourceTask = gantt.getTask(sourceEpicId);
+    
+    if (!targetTask || !sourceTask) {
+        console.error('Task not found - target:', targetEpicId, 'source:', sourceEpicId);
+        return;
+    }
+    
+    // Store the originalIndex of the source task as the dependency
+    targetTask.dependency = sourceTask.originalIndex;
+    gantt.updateTask(targetEpicId);
+    
+    console.log('Link created:', targetTask.text, 'depends on', sourceTask.text);
+    console.log('  Target originalIndex:', targetTask.originalIndex, 'depends on source originalIndex:', sourceTask.originalIndex);
+    
+    // Update localStorage
+    var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
+    if (targetTask.originalIndex !== undefined && jiras[targetTask.originalIndex]) {
+        jiras[targetTask.originalIndex].dependency = targetTask.dependency;
+        localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
+    }
+    
+    // Notify parent window
+    window.parent.postMessage({
+        type: 'updateEpicDependency',
+        originalIndex: targetTask.originalIndex,
+        dependency: targetTask.dependency
+    }, '*');
+    
+    // Re-render to show the arrow
+    renderCustomExport();
+}
+
+// Remove link function
+function removeQuickLink(epicId) {
+    console.log('Removing link from epic:', epicId);
+    
+    var task = gantt.getTask(epicId);
+    if (!task) {
+        console.error('Task not found:', epicId);
+        return;
+    }
+    
+    task.dependency = null;
+    gantt.updateTask(epicId);
+    
+    console.log('Link removed from:', task.text);
+    
+    // Update localStorage
+    var jiras = JSON.parse(localStorage.getItem('mapped_jiras.json') || '[]');
+    if (task.originalIndex !== undefined && jiras[task.originalIndex]) {
+        jiras[task.originalIndex].dependency = null;
+        localStorage.setItem('mapped_jiras.json', JSON.stringify(jiras));
+    }
+    
+    // Notify parent window
+    window.parent.postMessage({
+        type: 'updateEpicDependency',
+        originalIndex: task.originalIndex,
+        dependency: null
+    }, '*');
+    
+    // Re-render to remove the arrow
+    renderCustomExport();
 }
 
 function saveDependencyLink() {
