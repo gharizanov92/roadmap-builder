@@ -723,7 +723,7 @@ function renderDependencyArrows() {
     canvas.style.top = '0';
     canvas.style.left = '-100px'; // Extend 100px to the left for arrows
     canvas.style.pointerEvents = 'none';
-    canvas.style.zIndex = '10'; // Higher z-index to appear above other elements
+    canvas.style.zIndex = '1'; // Below pills (pills have z-index 2)
     
     // Set canvas size to match timeline body + extra space for arrows
     var rect = timelineBody.getBoundingClientRect();
@@ -795,21 +795,18 @@ function drawArrowOnCanvas(ctx, sourcePill, targetPill, container) {
     var minGap = 60;
     var rowHeight = 50; // Height of each timeline row
     
-    // Helper function to snap Y coordinate to nearest row boundary (top of row)
+    // Helper function to snap Y coordinate to nearest row boundary
     function snapToRowBoundary(y) {
         // Find which row this Y is in
         var rowIndex = Math.floor(y / rowHeight);
-        // Return the top of that row (or bottom if closer)
-        var topOfRow = rowIndex * rowHeight;
-        var bottomOfRow = (rowIndex + 1) * rowHeight;
-        var midOfRow = topOfRow + rowHeight / 2;
+        var topOfRow = rowIndex * rowHeight + 10;
+        var bottomOfRow = (rowIndex + 1) * rowHeight - 5;
         
-        // If we're in the top half, use top boundary, otherwise use bottom
-        if (y < midOfRow) {
-            return topOfRow;
-        } else {
-            return bottomOfRow;
-        }
+        // Snap to the nearest boundary (top or bottom of row)
+        var distToTop = Math.abs(y - topOfRow);
+        var distToBottom = Math.abs(y - bottomOfRow);
+        
+        return distToTop < distToBottom ? topOfRow : bottomOfRow;
     }
     
     ctx.beginPath();
