@@ -791,7 +791,7 @@ function renderDependencyArrows() {
     canvas.style.top = '0';
     canvas.style.left = '-100px'; // Extend 100px to the left for arrows
     canvas.style.pointerEvents = 'none';
-    canvas.style.zIndex = '1'; // Below pills (pills have z-index 2)
+    canvas.style.zIndex = '0'; // Below pills (pills have z-index 10)
     
     // Set canvas size to match timeline body + extra space for arrows
     var rect = timelineBody.getBoundingClientRect();
