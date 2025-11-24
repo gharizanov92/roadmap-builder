@@ -12,6 +12,8 @@ var gantt = {
         var categories = {};
         var taskId = 1;
         
+        // IMPORTANT: Always iterate jiras in the same order (by originalIndex)
+        // This ensures task IDs remain stable regardless of category reordering
         jiras.forEach(function(jira, index) {
             if (!jira.selected || !jira.category) return;
             
@@ -58,7 +60,9 @@ var gantt = {
     },
     
     getTask: function(id) {
-        return this.tasks.find(function(t) { return t.id === id; });
+        // Convert id to number if it's a string to handle type mismatches
+        var numId = typeof id === 'string' ? parseInt(id, 10) : id;
+        return this.tasks.find(function(t) { return t.id === numId; });
     },
     
     updateTask: function(id) {
@@ -215,6 +219,9 @@ function renderCustomExport(sprintConfig) {
     // Load data from localStorage into gantt object
     gantt.loadFromLocalStorage();
     
+    // Migrate old index-based dependencies to ID-based dependencies
+    migrateDependenciesToIds();
+    
     var leftPanel = document.getElementById('exportLeft');
     var rightPanel = document.getElementById('exportRight');
     
@@ -292,6 +299,9 @@ function renderCustomExport(sprintConfig) {
     
     // Apply custom category ordering from localStorage
     var categoryOrdering = JSON.parse(localStorage.getItem('category_ordering') || '[]');
+    console.log('Applying category ordering:', categoryOrdering);
+    console.log('Resources before ordering:', Object.keys(resources));
+    
     if (categoryOrdering.length > 0) {
         var orderedResources = {};
         categoryOrdering.forEach(function(resId) {
@@ -306,6 +316,7 @@ function renderCustomExport(sprintConfig) {
             }
         }
         resources = orderedResources;
+        console.log('Resources after ordering:', Object.keys(resources));
     }
     
     // Generate sprints for timeline
@@ -392,7 +403,6 @@ function renderCustomExport(sprintConfig) {
         resources[resId].epics.forEach(function(epic) {
             var epicEnd = new Date(epic.start_date);
             epicEnd.setDate(epicEnd.getDate() + epic.duration);
-            console.log(epic.text + ': ' + epic.start_date + ' to ' + epicEnd.toISOString().split('T')[0] + ' (' + epic.duration + ' days)');
         });
     }
     
@@ -410,10 +420,20 @@ function renderCustomExport(sprintConfig) {
     
     // Use Object.keys to maintain order
     var resourceIds = Object.keys(resources);
-    resourceIds.forEach(function(resId) {
+    resourceIds.forEach(function(resId, index) {
         var resource = resources[resId];
         leftHTML += '<div class="resource-group" data-resource-id="' + resId + '">';
+        leftHTML += '<div class="resource-name-container">';
         leftHTML += '<div class="resource-name">' + resource.name + '</div>';
+        leftHTML += '<div class="resource-reorder-buttons">';
+        if (index > 0) {
+            leftHTML += '<button class="resource-reorder-btn" onclick="moveCategoryUp(\'' + resId + '\')" title="Move up"><i class="fas fa-chevron-up"></i></button>';
+        }
+        if (index < resourceIds.length - 1) {
+            leftHTML += '<button class="resource-reorder-btn" onclick="moveCategoryDown(\'' + resId + '\')" title="Move down"><i class="fas fa-chevron-down"></i></button>';
+        }
+        leftHTML += '</div>';
+        leftHTML += '</div>';
         
         resource.epics.forEach(function(epic) {
             var progress = Math.round(epic.progress * 100);
@@ -725,26 +745,35 @@ function renderDependencyArrows() {
     // Get dependencies from gantt data
     gantt.eachTask(function(task) {
         if (task.type !== 'project' && task.dependency !== null && task.dependency !== undefined) {
+            console.log('Drawing arrow for task:', task.text, 'originalIndex:', task.originalIndex, 'dependency originalIndex:', task.dependency);
+            
             // Find the source and target pills
             var targetPill = pillMap[task.id];
             
-            // Find source task by dependency index
+            // Find source task by originalIndex (stable across reordering)
             var sourceTask = null;
-            var taskIndex = 0;
             gantt.eachTask(function(t) {
-                if (t.type !== 'project') {
-                    if (taskIndex === task.dependency) {
-                        sourceTask = t;
-                    }
-                    taskIndex++;
+                if (t.type !== 'project' && t.originalIndex === task.dependency) {
+                    sourceTask = t;
                 }
             });
+            
+            if (sourceTask) {
+                console.log('  -> Found source task:', sourceTask.text, 'ID:', sourceTask.id, 'originalIndex:', sourceTask.originalIndex);
+            } else {
+                console.warn('  -> Source task not found for originalIndex:', task.dependency);
+            }
             
             if (sourceTask && targetPill) {
                 var sourcePill = pillMap[sourceTask.id];
                 if (sourcePill) {
+                    console.log('  -> Drawing arrow from', sourceTask.text, 'to', task.text);
                     drawArrowOnCanvas(ctx, sourcePill, targetPill, timelineBody);
+                } else {
+                    console.warn('  -> Source pill not found for task ID:', sourceTask.id);
                 }
+            } else if (!targetPill) {
+                console.warn('  -> Target pill not found for task ID:', task.id);
             }
         }
     });
@@ -1208,7 +1237,11 @@ function setupCategoryDragAndDrop() {
             draggedCategory = this.parentElement; // The resource-group
             draggedResourceId = draggedCategory.getAttribute('data-resource-id');
             draggedCategory.style.opacity = '0.5';
-            console.log('Dragging category:', draggedResourceId);
+            console.log('Dragging category:', {
+                resourceId: draggedResourceId,
+                categoryElement: draggedCategory,
+                nameElement: this
+            });
         });
         
         nameElement.addEventListener('dragend', function(e) {
@@ -1224,14 +1257,16 @@ function setupCategoryDragAndDrop() {
     // Add drop handlers to resource groups
     document.querySelectorAll('.resource-group').forEach(function(group) {
         group.addEventListener('dragover', function(e) {
+            // ALWAYS prevent default to allow drop
+            e.preventDefault();
+            
             if (draggedCategory) {
-                e.preventDefault();
                 // Add drag-over class during dragover
                 if (this !== draggedCategory) {
                     this.classList.add('drag-over');
                 }
-                return false;
             }
+            return false;
         });
         
         group.addEventListener('dragenter', function(e) {
@@ -1248,7 +1283,17 @@ function setupCategoryDragAndDrop() {
         });
         
         group.addEventListener('drop', function(e) {
-            if (!draggedCategory) return;
+            console.log('Drop event fired!', {
+                hasDraggedCategory: !!draggedCategory,
+                targetElement: this,
+                isSameAsSource: this === draggedCategory
+            });
+            
+            if (!draggedCategory) {
+                console.log('No draggedCategory - aborting');
+                return;
+            }
+            
             e.stopPropagation();
             e.preventDefault();
             
@@ -1257,7 +1302,9 @@ function setupCategoryDragAndDrop() {
                 
                 console.log('Drop category event:', {
                     draggedResourceId: draggedResourceId,
-                    targetResourceId: targetResourceId
+                    targetResourceId: targetResourceId,
+                    draggedCategory: draggedCategory,
+                    targetGroup: this
                 });
                 
                 // Update category ordering in localStorage
@@ -1482,6 +1529,13 @@ var selectedDependencyIndex = null;
 
 var allDependencyItems = [];
 
+// Migrate old index-based dependencies to originalIndex-based dependencies
+function migrateDependenciesToIds() {
+    // Dependencies are now stored as originalIndex values, which are stable
+    // No migration needed - originalIndex values don't change when reordering
+    console.log('Dependency system uses originalIndex - no migration needed');
+}
+
 function openDependencyModal(epicId) {
     try {
         console.log('=== openDependencyModal START ===');
@@ -1515,7 +1569,7 @@ function openDependencyModal(epicId) {
     var currentDependency = currentTask.dependency;
     
     console.log('Opening dependency modal for epic:', epicId, currentTask);
-    console.log('Total tasks in gantt:', gantt.getTaskCount());
+    console.log('Current dependency ID:', currentDependency);
     
     // Show/hide remove button
     if (currentDependency !== null && currentDependency !== undefined) {
@@ -1527,13 +1581,9 @@ function openDependencyModal(epicId) {
     
     // Group epics by resource
     var epicsByResource = {};
-    var epicIndex = 0;
-    var totalTasks = 0;
+    var customNames = JSON.parse(localStorage.getItem('gantt_custom_names') || '{}');
     
     gantt.eachTask(function(task) {
-        totalTasks++;
-        console.log('Task', totalTasks, ':', task.id, task.text, 'type:', task.type, 'parent:', task.parent);
-        
         if (task.type !== 'project' && task.id !== epicId) {
             var parentTask = gantt.getTask(task.parent);
             if (!parentTask) {
@@ -1547,28 +1597,36 @@ function openDependencyModal(epicId) {
                 epicsByResource[resourceName] = [];
             }
             
+            // Check if this epic is selected (compare originalIndex)
+            var isSelected = task.originalIndex === currentDependency;
+            
+            // Get custom name if it exists
+            var displayName = customNames[task.id] || task.text;
+            
             epicsByResource[resourceName].push({
                 task: task,
                 parentTask: parentTask,
-                index: epicIndex,
-                isSelected: epicIndex === currentDependency
+                epicId: task.id,
+                originalIndex: task.originalIndex,
+                displayName: displayName,
+                isSelected: isSelected
             });
             
             allDependencyItems.push({
                 task: task,
                 parentTask: parentTask,
-                index: epicIndex,
-                isSelected: epicIndex === currentDependency,
+                epicId: task.id,
+                originalIndex: task.originalIndex,
+                displayName: displayName,
+                isSelected: isSelected,
                 resourceName: resourceName
             });
             
-            console.log('Added epic', epicIndex, ':', task.text, 'in resource:', resourceName);
-            epicIndex++;
+            console.log('Added epic:', displayName, 'originalIndex:', task.originalIndex, 'in resource:', resourceName, 
+                       'isSelected:', isSelected, '(comparing', task.originalIndex, '===', currentDependency, ')');
         }
     });
     
-    console.log('Total tasks checked:', totalTasks);
-    console.log('Found', epicIndex, 'epics for dependency selection');
     console.log('Epics by resource:', epicsByResource);
     console.log('All dependency items:', allDependencyItems);
     
@@ -1619,18 +1677,22 @@ function renderDependencyList(epicsByResource) {
         group.appendChild(header);
         
         epicsByResource[resourceName].forEach(function(epicData) {
-            console.log('  - Adding epic:', epicData.task.text);
+            console.log('  - Adding epic:', epicData.displayName, 'ID:', epicData.epicId, 'isSelected:', epicData.isSelected);
             
             var item = document.createElement('div');
             item.className = 'dependency-item' + (epicData.isSelected ? ' selected' : '');
-            item.setAttribute('data-index', epicData.index);
-            item.setAttribute('data-epic-name', epicData.task.text.toLowerCase());
+            item.setAttribute('data-epic-id', epicData.epicId);
+            item.setAttribute('data-epic-name', epicData.displayName.toLowerCase());
             item.setAttribute('data-resource-name', resourceName.toLowerCase());
             item.onclick = function() {
-                selectDependency(epicData.index);
+                selectDependency(epicData.epicId);
             };
             
-            item.innerHTML = '<div class="dependency-item-title">' + epicData.task.text + '</div>';
+            item.innerHTML = '<div class="dependency-item-title">' + epicData.displayName + '</div>';
+            
+            if (epicData.isSelected) {
+                console.log('    -> This epic should be selected!');
+            }
             
             group.appendChild(item);
         });
@@ -1658,9 +1720,9 @@ function filterDependencies() {
         return;
     }
     
-    // Filter items
+    // Filter items - search by displayName (custom name) instead of task.text
     var filtered = allDependencyItems.filter(function(item) {
-        return item.task.text.toLowerCase().includes(searchTerm) ||
+        return item.displayName.toLowerCase().includes(searchTerm) ||
                item.resourceName.toLowerCase().includes(searchTerm);
     });
     
@@ -1683,13 +1745,24 @@ function closeDependencyModal() {
     selectedDependencyIndex = null;
 }
 
-function selectDependency(index) {
-    selectedDependencyIndex = index;
+function selectDependency(epicId) {
+    // Find the task to get its originalIndex
+    var selectedTask = gantt.getTask(epicId);
+    if (!selectedTask) {
+        console.error('Task not found:', epicId);
+        return;
+    }
+    
+    selectedDependencyIndex = epicId;
+    
+    console.log('Selected dependency epic ID:', epicId, 'originalIndex:', selectedTask.originalIndex);
     
     // Update UI
     document.querySelectorAll('.dependency-item').forEach(function(item) {
-        if (parseInt(item.getAttribute('data-index')) === index) {
+        // Convert both to strings for comparison since getAttribute returns string
+        if (item.getAttribute('data-epic-id') === String(epicId)) {
             item.classList.add('selected');
+            console.log('Selected item:', item.querySelector('.dependency-item-title').textContent);
         } else {
             item.classList.remove('selected');
         }
@@ -1699,21 +1772,31 @@ function selectDependency(index) {
 function saveDependencyLink() {
     if (currentDependencyEpicId !== null && selectedDependencyIndex !== null) {
         var task = gantt.getTask(currentDependencyEpicId);
-        task.dependency = selectedDependencyIndex;
+        var targetTask = gantt.getTask(selectedDependencyIndex);
+        
+        if (!targetTask) {
+            console.error('Target task not found:', selectedDependencyIndex);
+            return;
+        }
+        
+        // Store the originalIndex of the target task as the dependency
+        // This is stable and won't change when reordering
+        task.dependency = targetTask.originalIndex;
         gantt.updateTask(currentDependencyEpicId);
         
         console.log('Saving dependency link:', {
-            epicId: currentDependencyEpicId,
-            originalIndex: task.originalIndex,
-            dependency: selectedDependencyIndex,
-            task: task
+            fromEpicId: currentDependencyEpicId,
+            fromOriginalIndex: task.originalIndex,
+            toEpicId: selectedDependencyIndex,
+            toOriginalIndex: targetTask.originalIndex,
+            savedDependency: task.dependency
         });
         
         // Notify parent window to update the issues page
         window.parent.postMessage({
             type: 'updateEpicDependency',
             originalIndex: task.originalIndex,
-            dependency: selectedDependencyIndex
+            dependency: task.dependency
         }, '*');
         
         closeDependencyModal();
@@ -1998,4 +2081,60 @@ function getTextWrapState() {
         textWrapEnabled = stored === 'true';
     }
     return textWrapEnabled;
+}
+
+
+// Category reordering with buttons
+function moveCategoryUp(resourceId) {
+    console.log('Moving category up:', resourceId);
+    
+    // Get current resource order from the DOM
+    var resourceGroups = document.querySelectorAll('.resource-group');
+    var resourceIds = [];
+    resourceGroups.forEach(function(g) {
+        resourceIds.push(g.getAttribute('data-resource-id'));
+    });
+    
+    console.log('Current order:', resourceIds);
+    
+    var currentIndex = resourceIds.indexOf(resourceId);
+    console.log('Current index:', currentIndex);
+    
+    if (currentIndex > 0) {
+        // Swap with previous
+        var temp = resourceIds[currentIndex - 1];
+        resourceIds[currentIndex - 1] = resourceId;
+        resourceIds[currentIndex] = temp;
+        
+        console.log('New order:', resourceIds);
+        localStorage.setItem('category_ordering', JSON.stringify(resourceIds));
+        renderCustomExport();
+    }
+}
+
+function moveCategoryDown(resourceId) {
+    console.log('Moving category down:', resourceId);
+    
+    // Get current resource order from the DOM
+    var resourceGroups = document.querySelectorAll('.resource-group');
+    var resourceIds = [];
+    resourceGroups.forEach(function(g) {
+        resourceIds.push(g.getAttribute('data-resource-id'));
+    });
+    
+    console.log('Current order:', resourceIds);
+    
+    var currentIndex = resourceIds.indexOf(resourceId);
+    console.log('Current index:', currentIndex);
+    
+    if (currentIndex >= 0 && currentIndex < resourceIds.length - 1) {
+        // Swap with next
+        var temp = resourceIds[currentIndex + 1];
+        resourceIds[currentIndex + 1] = resourceId;
+        resourceIds[currentIndex] = temp;
+        
+        console.log('New order:', resourceIds);
+        localStorage.setItem('category_ordering', JSON.stringify(resourceIds));
+        renderCustomExport();
+    }
 }

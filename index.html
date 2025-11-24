@@ -1467,17 +1467,64 @@
             border: 2px dashed #007aff;
         }
         
+        .resource-name-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
         .resource-name {
             font-size: 15px;
             font-weight: 700;
             color: #1a1a1a;
             padding: 8px 0;
-            margin-bottom: 8px;
-            cursor: move;
+            flex: 1;
         }
         
-        .resource-name:hover {
-            color: #007aff;
+        .resource-reorder-buttons {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .resource-name-container:hover .resource-reorder-buttons {
+            opacity: 1;
+        }
+        
+        .resource-reorder-btn {
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+            min-height: 24px !important;
+            border: none !important;
+            background: #f0f0f0 !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: #666 !important;
+            font-size: 12px !important;
+            transition: all 0.2s !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            z-index: 10;
+            position: relative;
+            gap: 0 !important;
+            letter-spacing: 0 !important;
+        }
+        
+        .resource-reorder-btn:hover {
+            background: #007aff !important;
+            color: white !important;
+            transform: none !important;
+            box-shadow: 0 2px 4px rgba(0, 122, 255, 0.3) !important;
+        }
+        
+        .resource-reorder-btn:active {
+            transform: scale(0.95) !important;
         }
         
         .epic-row {
