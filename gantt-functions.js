@@ -1,5 +1,101 @@
 console.log('gantt-functions.js loaded successfully');
 
+// Initialize mock data if localStorage is empty
+(function initializeMockData() {
+    var stored = localStorage.getItem('mapped_jiras.json');
+    if (!stored || stored === '[]') {
+        console.log('No data found - generating mock data...');
+        
+        // Get next Monday
+        var today = new Date();
+        var dayOfWeek = today.getDay();
+        var daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek) % 7;
+        var startMonday = new Date(today);
+        startMonday.setDate(today.getDate() + daysUntilMonday);
+        startMonday.setHours(0, 0, 0, 0);
+        
+        // End Friday next week (11 days from Monday)
+        var endFriday = new Date(startMonday);
+        endFriday.setDate(startMonday.getDate() + 11);
+        
+        var categories = ['Bugs', 'Features', 'Improvements', 'Technical Debt'];
+        var epicNames = [
+            'User Authentication', 'Dashboard Redesign', 'API Performance', 'Mobile Responsiveness',
+            'Search Functionality', 'Data Export', 'Email Notifications', 'Security Audit',
+            'Database Optimization', 'UI Components', 'Error Handling', 'Documentation',
+            'Testing Framework', 'CI/CD Pipeline', 'Monitoring Setup', 'Cache Implementation',
+            'Payment Integration', 'User Onboarding', 'Analytics Dashboard', 'Accessibility'
+        ];
+        
+        // Helper to skip weekends
+        function skipWeekends(date) {
+            var day = date.getDay();
+            if (day === 6) { // Saturday -> Monday
+                date.setDate(date.getDate() + 2);
+            } else if (day === 0) { // Sunday -> Monday
+                date.setDate(date.getDate() + 1);
+            }
+            return date;
+        }
+        
+        // Helper to add business days (skip weekends)
+        function addBusinessDays(date, days) {
+            var result = new Date(date);
+            var added = 0;
+            while (added < days) {
+                result.setDate(result.getDate() + 1);
+                if (result.getDay() !== 0 && result.getDay() !== 6) {
+                    added++;
+                }
+            }
+            return result;
+        }
+        
+        var mockJiras = [];
+        var availableStartDays = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; // Business days in 2 weeks
+        
+        for (var i = 0; i < 20; i++) {
+            // Random duration between 2-5 business days
+            var duration = Math.floor(Math.random() * 4) + 2;
+            
+            // Pick a random start day from available days
+            var startDayIndex = Math.floor(Math.random() * availableStartDays.length);
+            var startDay = availableStartDays[startDayIndex];
+            
+            var startDate = new Date(startMonday);
+            startDate = addBusinessDays(startDate, startDay);
+            startDate = skipWeekends(startDate);
+            
+            var endDate = addBusinessDays(startDate, duration);
+            endDate = skipWeekends(endDate);
+            
+            mockJiras.push({
+                issueKey: 'PROJ-' + (1000 + i),
+                summary: epicNames[i],
+                category: categories[i % categories.length],
+                startDate: startDate.toISOString().split('T')[0],
+                endDate: endDate.toISOString().split('T')[0],
+                progress: Math.floor(Math.random() * 100),
+                selected: true,
+                dependency: null,
+                status: 'In Progress',
+                priority: ['Highest', 'High', 'Medium', 'Low'][Math.floor(Math.random() * 4)],
+                issueType: 'Epic'
+            });
+        }
+        
+        // Create dependency chain for first 10 epics (1→2, 2→3, 3→4, etc.)
+        for (var i = 1; i < 10; i++) {
+            // Epic at index i depends on epic at index i-1
+            // Store as array to support multiple dependencies
+            mockJiras[i].dependency = [i - 1];
+        }
+        
+        localStorage.setItem('mapped_jiras.json', JSON.stringify(mockJiras));
+        console.log('Mock data generated:', mockJiras.length, 'epics');
+    }
+})();
+
 // Create a lightweight gantt data manager to replace DHTMLX gantt
 var gantt = {
     tasks: [],
@@ -739,6 +835,9 @@ function renderCustomExport(sprintConfig) {
     // Render dependency arrows
     renderDependencyArrows();
     
+    // Setup hover listeners for arrow highlighting
+    setupArrowHoverListeners();
+    
     // Setup window resize listener to refresh arrows
     setupResizeListener();
     
@@ -751,6 +850,55 @@ function renderCustomExport(sprintConfig) {
     if (toggleText) {
         toggleText.textContent = textWrapEnabled ? 'Unwrap Text' : 'Wrap Text';
     }
+}
+
+function setupArrowHoverListeners() {
+    // Hover on epic pills (timeline)
+    var pills = document.querySelectorAll('.epic-pill');
+    
+    pills.forEach(function(pill) {
+        pill.addEventListener('mouseenter', function() {
+            var epicId = this.getAttribute('data-epic-id');
+            hoveredEpicId = epicId;
+            renderDependencyArrows(epicId);
+        });
+        
+        pill.addEventListener('mouseleave', function() {
+            hoveredEpicId = null;
+            renderDependencyArrows();
+        });
+    });
+    
+    // Hover on epic names (left panel)
+    var epicNames = document.querySelectorAll('.epic-name');
+    
+    epicNames.forEach(function(nameElement) {
+        nameElement.addEventListener('mouseenter', function() {
+            var epicId = this.getAttribute('data-epic-id');
+            hoveredEpicId = epicId;
+            renderDependencyArrows(epicId);
+            
+            // Also highlight the corresponding pill
+            var pill = document.querySelector('.epic-pill[data-epic-id="' + epicId + '"]');
+            if (pill) {
+                pill.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.4)';
+                pill.style.transform = 'scale(1.02)';
+            }
+        });
+        
+        nameElement.addEventListener('mouseleave', function() {
+            hoveredEpicId = null;
+            renderDependencyArrows();
+            
+            // Reset pill highlight
+            var epicId = this.getAttribute('data-epic-id');
+            var pill = document.querySelector('.epic-pill[data-epic-id="' + epicId + '"]');
+            if (pill) {
+                pill.style.boxShadow = '';
+                pill.style.transform = '';
+            }
+        });
+    });
 }
 
 var resizeTimeout;
@@ -774,7 +922,37 @@ function handleResize() {
     }, 250);
 }
 
-function renderDependencyArrows() {
+// Store arrow data for hover highlighting
+var arrowData = [];
+var hoveredEpicId = null;
+
+// Helper to get epic's category color
+function getEpicCategoryColor(epicId) {
+    var task = gantt.getTask(epicId);
+    if (!task) return '#666';
+    
+    var parentTask = gantt.getTask(task.parent);
+    if (!parentTask) return '#666';
+    
+    // Get category color from the color map
+    var categoryColorMap = JSON.parse(localStorage.getItem('category_color_map') || '{}');
+    var colorIndex = categoryColorMap[parentTask.text];
+    
+    if (colorIndex === undefined) {
+        // Calculate default color index
+        var resourceIndex = 0;
+        gantt.eachTask(function(t) {
+            if (t.type === 'project' && t.id < task.parent) {
+                resourceIndex++;
+            }
+        });
+        colorIndex = resourceIndex % colorPalette.length;
+    }
+    
+    return solidColors[colorIndex] || '#666';
+}
+
+function renderDependencyArrows(highlightEpicId) {
     // Remove existing canvas
     var existingCanvas = document.getElementById('arrowCanvas');
     if (existingCanvas) {
@@ -803,9 +981,6 @@ function renderDependencyArrows() {
     timelineBody.appendChild(canvas);
     
     var ctx = canvas.getContext('2d');
-    ctx.strokeStyle = '#666';
-    ctx.fillStyle = '#666';
-    ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
@@ -817,6 +992,11 @@ function renderDependencyArrows() {
         var epicId = pill.getAttribute('data-epic-id');
         pillMap[epicId] = pill;
     });
+    
+    // Clear arrow data if not highlighting
+    if (!highlightEpicId) {
+        arrowData = [];
+    }
     
     // Get dependencies from gantt data - supports both single and multiple dependencies
     gantt.eachTask(function(task) {
@@ -847,8 +1027,42 @@ function renderDependencyArrows() {
                 if (sourceTask && targetPill) {
                     var sourcePill = pillMap[sourceTask.id];
                     if (sourcePill) {
+                        // Get category colors
+                        var sourceColor = getEpicCategoryColor(sourceTask.id);
+                        var targetColor = getEpicCategoryColor(task.id);
+                        
+                        // Determine arrow color based on hover state
+                        var arrowColor = '#666'; // Default gray
+                        var arrowWidth = 2;
+                        
+                        if (highlightEpicId) {
+                            if (String(sourceTask.id) === String(highlightEpicId)) {
+                                // Outgoing arrow - use target's category color
+                                arrowColor = targetColor;
+                                arrowWidth = 3;
+                            } else if (String(task.id) === String(highlightEpicId)) {
+                                // Incoming arrow - use source's category color
+                                arrowColor = sourceColor;
+                                arrowWidth = 3;
+                            } else {
+                                // Fade other arrows
+                                arrowColor = 'rgba(102, 102, 102, 0.2)';
+                                arrowWidth = 1;
+                            }
+                        }
+                        
+                        // Store arrow data for hover detection
+                        if (!highlightEpicId) {
+                            arrowData.push({
+                                sourceId: sourceTask.id,
+                                targetId: task.id,
+                                sourceColor: sourceColor,
+                                targetColor: targetColor
+                            });
+                        }
+                        
                         console.log('  -> Drawing arrow from', sourceTask.text, 'to', task.text);
-                        drawArrowOnCanvas(ctx, sourcePill, targetPill, timelineBody);
+                        drawArrowOnCanvas(ctx, sourcePill, targetPill, timelineBody, arrowColor, arrowWidth);
                     } else {
                         console.warn('  -> Source pill not found for task ID:', sourceTask.id);
                     }
@@ -860,7 +1074,14 @@ function renderDependencyArrows() {
     });
 }
 
-function drawArrowOnCanvas(ctx, sourcePill, targetPill, container) {
+function drawArrowOnCanvas(ctx, sourcePill, targetPill, container, color, lineWidth) {
+    color = color || '#666';
+    lineWidth = lineWidth || 2;
+    
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lineWidth;
+    
     var sourceRect = sourcePill.getBoundingClientRect();
     var targetRect = targetPill.getBoundingClientRect();
     var containerRect = container.getBoundingClientRect();
