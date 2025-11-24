@@ -721,15 +721,15 @@ function renderDependencyArrows() {
     canvas.id = 'arrowCanvas';
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
-    canvas.style.left = '0';
+    canvas.style.left = '-100px'; // Extend 100px to the left for arrows
     canvas.style.pointerEvents = 'none';
     canvas.style.zIndex = '10'; // Higher z-index to appear above other elements
     
-    // Set canvas size to match timeline body
+    // Set canvas size to match timeline body + extra space for arrows
     var rect = timelineBody.getBoundingClientRect();
-    canvas.width = timelineBody.scrollWidth;
+    canvas.width = timelineBody.scrollWidth + 100; // Add 100px for left overflow
     canvas.height = timelineBody.scrollHeight;
-    canvas.style.width = timelineBody.scrollWidth + 'px';
+    canvas.style.width = (timelineBody.scrollWidth + 100) + 'px';
     canvas.style.height = timelineBody.scrollHeight + 'px';
     
     timelineBody.appendChild(canvas);
@@ -784,10 +784,10 @@ function drawArrowOnCanvas(ctx, sourcePill, targetPill, container) {
     var targetRect = targetPill.getBoundingClientRect();
     var containerRect = container.getBoundingClientRect();
     
-    // Calculate positions relative to container
-    var startX = sourceRect.right - containerRect.left;
+    // Calculate positions relative to container + 100px offset for canvas extension
+    var startX = sourceRect.right - containerRect.left + 100;
     var startY = sourceRect.top + sourceRect.height / 2 - containerRect.top;
-    var endX = targetRect.left - containerRect.left;
+    var endX = targetRect.left - containerRect.left + 100;
     var endY = targetRect.top + targetRect.height / 2 - containerRect.top;
     
     var radius = 8;
@@ -1087,9 +1087,16 @@ function setupCategoryDragAndDrop() {
         
         nameElement.addEventListener('dragstart', function(e) {
             e.stopPropagation(); // Prevent bubbling to epic-row
-            draggedCategory = this.parentElement; // The resource-group
+            // Find the resource-group (parent of resource-name-container)
+            draggedCategory = this.parentElement.parentElement;
             draggedResourceId = draggedCategory.getAttribute('data-resource-id');
             draggedCategory.style.opacity = '0.5';
+            
+            console.log('Dragging category:', {
+                resourceId: draggedResourceId,
+                categoryElement: draggedCategory,
+                nameElement: this
+            });
         });
         
         nameElement.addEventListener('dragend', function(e) {
